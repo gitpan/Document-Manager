@@ -1,8 +1,4 @@
 
-# Think about ways to modularly add the above functionality or wrapper this
-# instead of implementing it directly here.  E.g. metadata 'plug in' for 
-# attributes instead of hardcoding the metadata here.
-
 =head1 NAME
 
 Document::Manager
@@ -29,9 +25,10 @@ arbitrary set of metadata associated with it.
 package Document::Manager;
 
 use strict;
+use Document::Repository;
 
 use vars qw($VERSION %FIELDS);
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 use fields qw(
               _repository
@@ -50,14 +47,28 @@ sub new {
     my $class = ref($this) || $this;
     my $self = bless [\%FIELDS], $class;
 
+    # TODO:  Hmm, I probably should not allow callers to set _repository or _error_msg
     while (my ($field, $value) = each %args) {
-	$self->{"|$field"} = $value
-	    if (exists $FIELDS{"_$field"});
+	if (exists $FIELDS{"_$field"}) {
+	    $self->{"_$field"} = $value;
+	    if ($args{debug} && $args{debug}>3 && defined $value) {
+		warn 'Setting Document::Manager::_'.$field." = $value\n";
+	    }
+	}
     }
 
-    # Specify defaults
-    # TODO:  Better initialization for the repository
-    $self->{_repository} = new Document::Repository;
+    # TODO:  Load this from a config file
+    my $repo_dir = '/var/dms';
+
+    warn "Connecting to repository in '$repo_dir'\n";
+
+    $self->{_repository} = new Document::Repository( repository_dir => $repo_dir );
+
+    if (! $self->{_repository}) {
+	warn "Error:  Could not establish connection to repository\n";
+    } else {
+	warn "Okay, got connection to repository.\n";
+    }
 
     return $self;
 }
@@ -108,7 +119,22 @@ sub checkout {
 	return undef;
     }
 
-    return $_repository->get($doc_id, $revision, $dir);
+    return $self->{_repository}->get($doc_id, $revision, $dir);
+}
+
+=head2 add()
+
+=cut
+
+sub add {
+    my $self = shift;
+    my $doc_id = $self->{_repository}->add(@_);
+
+    if (! $doc_id) {
+	warn "Error:  ".$self->{_repository}->get_error()."\n";
+    }
+    
+    return $doc_id;
 }
 
 =head2 checkin()
@@ -129,7 +155,7 @@ sub checkin {
 	return undef;
     }
 
-    my $new_revision = $_repository->put($doc_id, @files);
+    my $new_revision = $self->{_repository}->put($doc_id, @files);
 
     # TODO log / trigger notifications
     return $new_revision;
@@ -145,9 +171,19 @@ conditions.
 
 sub query {
     my $self = shift;
+
+    warn "Calling query()\n";
+
     # Pass in a function pointer we'll use for determine matching docs
     # Could we cache properties?  Store in a database?  Or is that higher level?
     # Return list of matching documents
+
+    my %ob1 = ('foo' => 1, 'bar' => 2);
+    my %ob2 = ('foo' => 2, 'bar' => 4);
+    my %ob3 = ('foo' => 3, 'bar' => 6);
+
+    my @objs = $self->{_repository}->documents();
+    return \@objs;
 }
 
 =head2 revert()
@@ -224,6 +260,7 @@ Gets or sets the properties for a given document id
 
 sub properties {
     my $self = shift;
+    my $doc_id = shift;
 
     # Given a valid document id
     if (! $doc_id || $doc_id != /^\d+/) {

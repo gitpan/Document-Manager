@@ -69,19 +69,25 @@ sub new {
     my $class = ref($this) || $this;
     my $self = bless [\%FIELDS], $class;
 
+    warn "Creating new Document::Repository\n";
+
     while (my ($field, $value) = each %args) {
 	if (exists $FIELDS{"_$field"}) {
 	    $self->{"_$field"} = $value;
 	    if ($args{debug} && $args{debug}>3 && defined $value) {
-		warn 'Setting Document::Archive::_'.$field." = $value\n";
+		warn 'Setting Document::Repository::_'.$field." = $value\n";
 	    }
 	}
     }
+
+    warn "Specifying defaults in Document::Repository\n";
 
     # Specify defaults
     $self->{_repository_dir} ||= '/var/dms';
     $self->{_repository_permissions} ||= '0700';
     $self->{_next_id} = 1;
+
+    warn "Initializing Document::Repository\n";
 
     # If caller has requested doing initialization, do that as well
     if ($args{create_new_repository}) {
@@ -89,31 +95,39 @@ sub new {
 		     $self->{_repository_permissions});
     }
 
+    warn "Verifying\n";
+
     # Verify everything is sane...
     if (! -d $self->{_repository_dir} ) {
-	die "Repository directory '" . $self->{_repository_dir} . "' does not exist\n";
+	$self->dbg("Repository directory '" . $self->{_repository_dir} . "' does not exist\n", 1);
     }
     if (! -x $self->{_repository_dir} ) {
-	die "Repository directory '" . $self->{_repository_dir} . "' is not accessible\n";
+	$self->dbg("Repository directory '" . $self->{_repository_dir} . "' is not accessible\n", 1);
     }
+
+    warn "Determining next id\n";
 
     # Determine what the next id is based on the maximum document id number
     foreach my $doc_id ($self->documents()) {
-	last if (! defined $doc_id);
+	last if (! $doc_id);
 	$self->dbg("Found document id '$doc_id'\n", 4);
 
-	if ($doc_id && $doc_id >= $self->{_next_id}) {
+	if ($doc_id >= $self->{_next_id}) {
 	    $self->{_next_id} = $doc_id + 1;
 	}
     }
 
-    if ($self->{_debug} > 4) {
-	warn "Document::Archive settings:\n";
+    warn "Printing settings...\n";
+
+    if ($self->{_debug} > 4 or 1==1) {
+	warn "Document::Repository settings:\n";
 	warn "  debug                  = $self->{_debug}\n";
 	warn "  repository_dir         = $self->{_repository_dir}\n";
 	warn "  repository_permissions = $self->{_repository_permissions}\n";
 	warn "  next_id                = $self->{_next_id}\n";
     }
+
+    warn "Returning...\n";
 
     return $self;
 }
@@ -278,13 +292,18 @@ sub add {
     $self->_set_error('');
 
     my $doc_id = $self->{_next_id};
-    die "Could not get next document id\n" unless ($doc_id);
 
-    my $repo = $self->repository_path($doc_id) or
-	die "Could not get repository path for doc '$doc_id': "
-	. $self->get_error();
+    if (! $doc_id) {
+	$self->_set_error("next_id not defined");
+	return undef;
+    }
 
-    if (-e $repo) {
+    my $repo = $self->repository_path($doc_id);
+
+    if (! $repo) {
+	$self->_set_error("Directory in repository could not be created\n");
+	return undef;
+    } elsif (-e $repo) {
 	# Problem...  This document should not already exist...
 	$self->_set_error("Document '$doc_id' already exists in the repository");
 	return undef;
@@ -297,11 +316,12 @@ sub add {
 	return undef;
     }
 
+    $self->{_next_id}++;
+
     if (@filenames) {
 	$self->put($doc_id, @filenames) || return undef;
     }
 
-    $self->{_next_id}++;
     return $doc_id;
 }
 
@@ -358,7 +378,7 @@ sub put {
     return $revision;
 }
 
-=head2 get($doc_id, $revision, $destination, [\&copy_function], [\&select_function])
+=head2 get($doc_id, $revision, $destination, [$copy_function], [$select_function])
 
 Retrieves a copy of the document specified by $doc_id of the given
 $revision (or the latest, if not specified), and places it at
@@ -441,7 +461,8 @@ sub _iterate_doc_ids {
 	    # This is a thousands (k) or millions (M) dir, so it contains
 	    # additional subdirs for documents within it.  We recurse into
 	    # this directory and continue processing...
-	    if (! _iterate_doc_ids($subdir, $func, $1)) {
+	    if (! $self->_iterate_doc_ids(catdir($dir,$subdir), $func, $1)) {
+		$self->_set_error("Error descending into '$subdir'");
 		return undef;
 	    }
 	}
@@ -464,15 +485,18 @@ sub documents {
     my $self = shift;
 
     my $repo = $self->{_repository_dir};
+    warn "Getting list of documents from '$repo'\n";
     $self->dbg("Getting list of documents from '$repo'\n", 4);
 
     our @documents = ();
 
     sub get_doc_ids { 
 	my $doc_id = shift;
+	warn "Got document '$doc_id'\n";
 	push @documents, $doc_id; 
     }
     if (! $self->_iterate_doc_ids($repo, \&get_doc_ids)) {
+	warn "Error iterating doc ids\n";
 	# Error msg will already be set by _iterate_doc in this case
 	return undef;
     }

@@ -1,14 +1,39 @@
-TODO
+PLAN
 ----
+
+Milestone 0
+===========
    * (DONE) Add $self to all new routines
    * (DONE) Put pseudocode for all new routines
    * (DONE) Review existing routines for possible bits to extract
    * (DONE) Consider renaming Document::Manager to Document::Repository
+   * (DONE) Post to CPAN
+
+Milestone 1
+===========
+   * (DONE) soap_client.pl - add capability to add a slew of svg's
+   * (DONE) Insert the svg's from the recent release
+   * Evaluate ocal cgi's and scripts to determine DMS needs
+   * Cut a release to CPAN & announce
+
+Milestone 2
+===========
+   * Make ls_docs display data about the files it lists
+   * Flesh out Document::Manager with more functionality
+
+Milestone 2
+===========
+   * Figure out way to add a metadata "object" to Document::Manager
+   * Review other DMS capabilities for other cmds to be added
+   * Plan out how / if I should add a db for caching info
+
+Future
+======
+   * Create some tests
    * Ideally, documents() should never encounter an error condition...
    * Should Document::Repository::add() really be put()?
    * Add error_msg handling for new routines
    * Document inputs/outputs for all new routines
-   * (DONE) Post to CPAN
    * Should Document::Repository really die in its new() routine?
    * Add logging / changelog
    * Persist the next_id so it can be loaded...
@@ -40,3 +65,5 @@ TODO
    * Encryption
    * Import tree (each dir or file representing a document)
    * Generate dist package of some/all documents
+
+

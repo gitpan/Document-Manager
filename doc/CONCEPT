@@ -104,3 +104,13 @@ like to work on any of the above bits, go for it.
 
 Bryce
 
+
+
+
+OVERVIEW
+--------
+Clipart-Repository will be a high level interface for use by Open Clip
+Art Library to access the clip art repository.  It'll be built on a
+number of the lower level perl modules, combining things like
+SVG::Metadata, Document::Manager, and SOAP::Lite together to provide a
+server daemon that can be used by various interfaces.
