@@ -173,7 +173,7 @@ sub dbg {
     warn $message if ($self->{_debug} >= $thresh);
 }
 
-=head2 repository_path($doc_id, $rev_number)
+=head2 repository_path($doc_id)
 
 Returns a path to the location of the document within the repository
 repository. 
@@ -183,7 +183,6 @@ repository.
 sub repository_path {
     my $self = shift;
     my $doc_id = shift || return undef;
-    my $rev_number = shift;
     $self->_set_error('');
 
     my $repo = $self->{_repository_dir};
@@ -221,37 +220,50 @@ sub repository_path {
 	return undef;
     }
 
+    return $repo;
+}
+
+=head2 current_revision($doc_id, [$doc_path])
+
+Returns the current (latest & highest) revision number for the document,
+or undef if there is no revisions for the document or if the document
+does not exist.
+
+You must specify the $doc_id to be looked up.  Optionally, the $doc_path
+may be given (saves the lookup time if you have already calculated it).
+
+=cut
+
+sub current_revision {
+    my $self = shift;
+    my $doc_id = shift || return undef;
+    my $doc_path = shift || $self->repository_path($doc_id);
+    my $rev_number;
+
     # Get the current revision number by looking for highest numbered
     # file or directory if the document already exists
-    if (! $rev_number && -d $repo) {
-	if (! opendir(DIR, $repo)) {
-	    $self->_set_error("Could not open directory '$repo' ".
+    if (! defined $rev_number && -d $doc_path) {
+	if (! opendir(DIR, $doc_path)) {
+	    $self->_set_error("Could not open document directory '$doc_path' ".
 			      "to find the max revision number: $!");
 	    return undef;
 	}
 	my @files = sort { $a <=> $b } grep { /^\d+$/ } readdir(DIR);
-	$rev_number = shift @files;
+	$self->dbg("Revisions for '$doc_id' are:  @files\n", 2);
+	$rev_number = pop @files;
 	closedir(DIR);
     }
-    $rev_number ||= 1;
-
-    $repo = catdir($repo,
-		   sprintf("%03d", $rev_number));
-
-    return $repo;
+    return $rev_number;
 }
 
 
-=head2 add()
+=head2 add(@filenames)
 
-Adds a new document to the repository.  Establishes a new document
-ID and returns it.
+Adds a new document of revision 001 to the repository by adding its
+files.  Establishes a new document ID and returns it.
 
 If you wish to simply register the document ID without actually
-uploading a file, send a zero-byte temp file.
-
-Specify a $revision if you want the document to start at a revision
-number other than 0.
+uploading files, @filenames can be left undefined.
 
 Returns undef on failure.  You can retrieve the error message by
 calling get_error().
@@ -260,46 +272,99 @@ calling get_error().
 
 sub add {
     my $self = shift;
-    my $filename = shift;
-    my $revision = shift || 0;
-    $self->_set_error('');
+    my @filenames = @_;
 
-    if (! $filename || ! -e $filename) {
-	$self->_set_error("Invalid filename specified to add()");
-	return undef;
-    }
+    my $revision = 1;
+    $self->_set_error('');
 
     my $doc_id = $self->{_next_id};
     die "Could not get next document id\n" unless ($doc_id);
 
-    my $repo = $self->repository_path($doc_id, $revision) or
-	die "Could not get repository path for doc '$doc_id', rev '$revision': "
+    my $repo = $self->repository_path($doc_id) or
+	die "Could not get repository path for doc '$doc_id': "
 	. $self->get_error();
+
+    if (-e $repo) {
+	# Problem...  This document should not already exist...
+	$self->_set_error("Document '$doc_id' already exists in the repository");
+	return undef;
+    }
 
     $self->dbg("Creating path '$repo' as $self->{_repository_permissions}\n", 2);
     eval { mkpath([$repo], 0, oct($self->{_repository_permissions})) };
     if ($@) {
-	$self->_set_error("Error adding '$filename' to repository:  $@");
+	$self->_set_error("Error creating '$repo' for doc id '$doc_id':  $@");
 	return undef;
     }
 
-    my ($vol,$dirs,$base_filename) = splitpath( $filename );
-
-    # Install the file into the repository
-    if (! copy($filename, catfile($repo, $base_filename)) ) {
-	$self->_set_error("Error copying '$filename' to repository: $!");
-	return undef;
+    if (@filenames) {
+	$self->put($doc_id, @filenames) || return undef;
     }
 
     $self->{_next_id}++;
     return $doc_id;
 }
 
-=head2 get()
+
+=head2 put($doc_id, @filenames)
+
+Adds a new revision to a document in the repository.  All files must
+exist.
+
+Returns the revision number created, or undef on failure.  You can
+retrieve the error message by calling get_error().
+
+=cut
+
+sub put {
+    my $self = shift;
+    my $doc_id = shift || '';
+    my @filenames = @_;
+
+    my $doc_path = $self->repository_path($doc_id) || return undef;
+    my $revision = ($self->current_revision($doc_id, $doc_path) || 0) + 1;
+    $self->dbg("Adding revision '$revision' for doc id '$doc_id'\n");
+
+    my $rev_path = catdir($doc_path,
+			  sprintf("%03d", $revision));
+    if (-e $rev_path) {
+	# Problem...  This revision should not already exist...
+	$self->_set_error("Revision '$revision' for doc id '$doc_id' already exists in the repository");
+	return undef;
+    }
+
+    $self->dbg("Creating path '$rev_path' as $self->{_repository_permissions}\n", 2);
+    eval { mkpath([$rev_path], 0, oct($self->{_repository_permissions})) };
+    if ($@) {
+	$self->_set_error("Error making path '$rev_path' to repository:  $@");
+	return undef;
+    }
+
+    foreach my $filename (@filenames) {
+	next unless defined $filename;
+	if (! -e $filename) {
+	    $self->_set_error("File '$filename' does not exist.");
+	    return undef;
+	}
+	my ($vol,$dirs,$base_filename) = splitpath( $filename );
+
+	# Install the file into the repository
+	if (! copy($filename, catfile($rev_path, $base_filename)) ) {
+	    $self->_set_error("Error copying '$filename' to repository: $!");
+	    return undef;
+	}
+    }
+
+    return $revision;
+}
+
+=head2 get($doc_id, $revision, $destination, [\&copy_function], [\&select_function])
 
 Retrieves a copy of the document specified by $doc_id of the given
 $revision (or the latest, if not specified), and places it at
 $location (or the cwd if not specified).  
+
+See files() for a description of the optional \&select_function.
 
 The document is copied using the routine specified by $copy_function.
 This permits overloading the behavior in order to perform network
@@ -309,15 +374,16 @@ If defined, $copy_function must be a reference to a function that
 accepts two parameters: an array of filenames (with full path) to be
 copied, and the $destination parameter that was passed to get().  The
 caller is allowed to define $destination however desired - it can be a
-filename, URI, hash reference, etc.
+filename, URI, hash reference, etc.  $copy_function should return a 
+list of the filenames actually copied.
 
 If $copy_function is not defined, the default behavior is simply to call
 the File::Copy routine copy($fn, $destination) iteratively on each file
 in the document, returning the number of files
 
-Returns the return value from $copy_function, or undef if get()
-encountered an error (such as bad parameters).  The error message can be
-retrieved via get_error().
+Returns a list of files (or the return value from $copy_function), or
+undef if get() encountered an error (such as bad parameters).  The error
+message can be retrieved via get_error().
 
 =cut
 
@@ -329,41 +395,12 @@ sub get {
     my $copy_function = shift || '';
     my $select_function = shift;
 
-    $self->_set_error('');
-
-    if (! $doc_id || $doc_id !~ /^\d+/) {
-	$self->_set_error("Invalid doc_id '$doc_id' specified to get()");
+    if (! $destination) {
+	$self->_set_error("No destination specified for get()");
 	return undef;
     }
 
-    my $repo = $self->repository_path($doc_id, $revision);
-
-    $self->dbg("Getting files from '$repo'\n", 2);
-
-    if (! opendir(DIR, $repo)) {
-	$self->_set_error("Could not open '$repo' to checkout file: $!");
-	return undef;
-    }
-
-    my @files = ();
-    while (defined(my $filename = readdir DIR)) {
-	$self->dbg("Considering file '$filename'\n",3);
-	if ($filename =~ /^\./ ) {
-	    $self->dbg("Skipping '$filename' since it is a hidden file\n",4);
-	    next;
-	} elsif (! -f catfile($repo, $filename)) {
-	    $self->dbg("Skipping '$filename' since it is not a valid file\n",4);
-	    next;
-	}	    
-
-	if (defined $select_function) {
-	    $self->dbg("Applying custom selection function\n", 4);
-	    next unless (&$select_function(catfile($repo,$filename)));
-	}
-	$self->dbg("Selecting file '$filename' to get", 3);
-	push @files, catfile($repo, $filename);
-    }
-    closedir(DIR);
+    my @files = $self->files($doc_id, $revision, $select_function, 1);
 
     $self->dbg("Retrieving document files (@files)\n",2);
 
@@ -371,13 +408,14 @@ sub get {
 	return &$copy_function(\@files, $destination);
     } else {
 	foreach my $filename (@files) {
+	    next unless defined $filename;
 	    if (! copy($filename, $destination)) {
 		$self->_set_error("Could not copy '$filename' for document '$doc_id': $!");
 		return undef;
 	    } 
 	}
     }
-    return 1;
+    return @files;
 }
 
 # Recursively iterates through the document repository, running the
@@ -450,12 +488,14 @@ Lists the revisions for the given document id
 
 sub revisions {
     my $self = shift;
-    my $doc_id = shift || return undef;
+    my $doc_id = shift;
 
-    my $repo = $self->repository_path($doc_id);
-
-    # Given a valid document id
-    return undef unless $repo;
+    my $repo = $self->repository_path($doc_id) || return undef;
+    if (! defined $repo) {
+	$self->dbg("Repository undefined:  $repo->get_error()", 2);
+	return undef;
+    } 
+    $self->dbg("Getting revisions from '$repo'\n", 4);
 
     # Retrieve all of the valid revisions of this document
     my @revisions;
@@ -463,10 +503,76 @@ sub revisions {
 	$self->_set_error("Could not open repository '$repo': $!");
 	return undef;
     }
-    @revisions = grep { -d && /^\d+$/ } readdir(DIR);
+    @revisions = grep { /^\d+$/ } readdir(DIR);
+    $self->dbg("Retrieved revisions: @revisions\n", 4);
     closedir(DIR);
 
     return @revisions;
+}
+
+
+=head2 files($doc_id, $revision, [\&selection_function], [$with_path])
+
+Lists the files for the given document id and revision (or the latest
+revision if not specified.)
+
+The optional \&selection_function allows customized constraints to be
+placed on what files() returns.  This function must accept a file path
+and return true if the file should be selected for the list to return.
+
+The optional $with_path argument allows control over whether to return
+files with their path prepended or not.
+
+=cut
+
+sub files {
+    my $self = shift;
+    my $doc_id = shift;
+    my $revision = shift;
+    my $select_function = shift;
+    my $with_path = shift;
+
+    my $doc_path = $self->repository_path($doc_id) || return undef;
+
+    # Default $revision to current revision if not specified
+    $revision ||= $self->current_revision($doc_id, $doc_path);
+
+    my $rev_path = catdir($doc_path,
+                          sprintf("%03d", $revision));
+
+    $self->dbg("Getting files from '$rev_path'\n", 4);
+
+    if (! opendir(DIR, $rev_path)) {
+	$self->_set_error("Could not open '$rev_path' to get files: $!");
+	return undef;
+    }
+
+    my @files = ();
+    while (defined(my $filename = readdir DIR)) {
+	$self->dbg("Considering file '$filename'\n",3);
+	my $file_path = catfile($rev_path, $filename);
+	if ($filename =~ /^\./ ) {
+	    $self->dbg("Skipping '$filename' since it is a hidden file\n",4);
+	    next;
+	} elsif (! -f $file_path) {
+	    $self->dbg("Skipping '$filename' since it is not a valid file\n",4);
+	    next;
+	}
+
+	if (defined $select_function) {
+	    $self->dbg("Applying custom selection function\n", 4);
+	    next unless (&$select_function($file_path));
+	}
+	$self->dbg("Selecting file '$filename' to get\n", 3);
+	if ($with_path) {
+	    push @files, $file_path;
+	} else {
+	    push @files, $filename;
+	}
+    }
+    closedir(DIR);
+
+    return @files;
 }
 
 =head2 stats()

@@ -11,9 +11,11 @@ lib/Document/Manager.pm
 lib/Document/Repository.pm
 scripts/dms
 scripts/repo_add
+scripts/repo_export
 scripts/repo_get
-scripts/tmp/dms
-scripts/tmp/repo_add
+scripts/repo_init
+scripts/repo_ls
+scripts/repo_put
 t/00_initialize.t
 t/01_repo_basic.t
 t/test.t
