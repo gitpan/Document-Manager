@@ -1,0 +1,12 @@
+ChangeLog
+INSTALL
+MANIFEST
+Makefile.PL
+README
+etc/dms.conf
+lib/Document/Manager.pm
+lib/Document/Repository.pm
+scripts/dms
+scripts/repo_add
+scripts/repo_get
+t/test.t
