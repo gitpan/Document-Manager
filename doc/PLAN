@@ -8,7 +8,7 @@ TODO
    * Should Document::Repository::add() really be put()?
    * Add error_msg handling for new routines
    * Document inputs/outputs for all new routines
-   * Post to CPAN
+   * (DONE) Post to CPAN
    * Should Document::Repository really die in its new() routine?
    * Add logging / changelog
    * Persist the next_id so it can be loaded...

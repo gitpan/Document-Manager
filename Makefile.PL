@@ -46,10 +46,6 @@ my %opts = (
 	    'ABSTRACT' => 'Manages collection of revision-controlled docs'
 );
 
-if ($ExtUtils::MakeMaker::VERSION > 5.45) {
-    $opts{PREREQ_FATAL} = 1,
-}
-
 # This puts us in the site_perl directory, not dependant on any version
 # of perl.
 if (defined($Config{'sitelib_stem'}) && $Config{'sitelib_stem'} ne "") {
@@ -107,22 +103,6 @@ sub MY::postamble {
 
     # Determine location of etc conf files
     my $destdir = $args{DESTDIR} || rootdir();
-    my $prefix  = $self->{PREFIX} || $self->{SITEPREFIX} || $self->{VENDORPREFIX};
-
-    if ($prefix ne '/usr' &&
-        $prefix ne "/usr/local" &&
-        !defined($args{DESTDIR})) {
-        die <<'EOM';
-If you are installing this anywhere other than "/usr" or "/usr/local", you
-must specify the "DESTDIR" option on the "make" command line, otherwise
-this script cannot make sense of the Perl PREFIX setting.
-EOM
-}
-
-    # Fix up MakeMaker ugliness
-    if ($prefix !~ /^$destdir/) {
-        $prefix = "$destdir$prefix";
-    }
 
     my $etcdir   = catdir( $destdir,  'etc', $args{pkg_name} );
     my $etcfiles = catfile( 'etc', "dms.conf" );

@@ -31,7 +31,7 @@ package Document::Manager;
 use strict;
 
 use vars qw($VERSION %FIELDS);
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 use fields qw(
               _repository
@@ -85,8 +85,9 @@ a copy into the directory specified by $dir.  By default it will
 return the most recent revision, but a specific revision can be
 retrieved by specifying $revision.
 
-Returns the filename copied into $dir on success.  If there is an error,
-it returns undef.  The error message can be retrieved via get_error().
+Returns the filename(s) copied into $dir on success.  If there is an
+error, it returns undef.  The error message can be retrieved via
+get_error().
 
 =cut
 
@@ -107,39 +108,31 @@ sub checkout {
 	return undef;
     }
 
-    my $repo = $self->repository_path($doc_id, $revision);
-
-    if (! opendir(DIR, $repo)) {
-	$self->_set_error("Could not open '$repo' to checkout file: $!");
-	return undef;
-    }
-    my @files = sort grep {-f && !/^\./ } readdir DIR;
-    closedir(DIR);
-    my $filename = shift @files;
-
-    if (! copy(catfile($repo, $filename), $dir)) {
-	$self->_set_error("Error copying '$filename' to destination '$dir': $!");
-	return undef;
-    }
-
-    return $filename;
+    return $_repository->get($doc_id, $revision, $dir);
 }
 
 =head2 checkin()
 
-Commits a new revision to the document
+Commits a new revision to the document.  Returns the document's new
+revision number.
 
-# TODO
 =cut
 
 sub checkin {
     my $self = shift;
-    # TODO
+    my $doc_id = shift;
+    my @files = @_;
 
-    # Given a valid document filename and document id,
-    # increment the revision number
-    # place the new file into the repository
-    # log / trigger notifications
+    # Given a valid document id,
+    if (! $doc_id || $doc_id != /^\d+/) {
+	$self->_set_error("Invalid doc_id specified to checkout()");
+	return undef;
+    }
+
+    my $new_revision = $_repository->put($doc_id, @files);
+
+    # TODO log / trigger notifications
+    return $new_revision;
 }
 
 =head2 query()
@@ -166,8 +159,19 @@ Reverts the given document to a prior revision number
 
 sub revert {
     my $self = shift;
+    my $doc_id = shift;
+    my $new_revision = shift;
 
-    # Given a valid document id and revision number < current rev
+    if (! $doc_id || $doc_id != /^\d+/) {
+	$self->_set_error("Invalid doc_id specified to checkout()");
+	return undef;
+    }
+
+    my $current_revision = 42;
+    if ($new_revision >= $current_revision) {
+	# TODO:  Error - this revision number is too high
+    }
+
     # get the old revision of the document
     # check it in as a new revision
     # log / trigger notifications
@@ -181,8 +185,14 @@ Locks a document for the given user for a specified period of time
 
 sub lock {
     my $self = shift;
+    my $doc_id = shift;
 
     # Given a valid document id
+    if (! $doc_id || $doc_id != /^\d+/) {
+	$self->_set_error("Invalid doc_id specified to checkout()");
+	return undef;
+    }
+
     # apply 'lock' on the document for the specified period by this uid
 }
 
@@ -194,8 +204,14 @@ Unlocks a document, if it is locked
 
 sub unlock {
     my $self = shift;
+    my $doc_id = shift;
 
     # Given a valid document id
+    if (! $doc_id || $doc_id != /^\d+/) {
+	$self->_set_error("Invalid doc_id specified to checkout()");
+	return undef;
+    }
+
     # If the document has been locked by this user
     # unlock it
 }
@@ -209,7 +225,16 @@ Gets or sets the properties for a given document id
 sub properties {
     my $self = shift;
 
-    # Given a valid document id, return its properties object
+    # Given a valid document id
+    if (! $doc_id || $doc_id != /^\d+/) {
+	$self->_set_error("Invalid doc_id specified to checkout()");
+	return undef;
+    }
+
+    # Retrieve the properties for this document
+    my $properties = '';
+
+    return $properties;
 }
 
 =head2 stats()
