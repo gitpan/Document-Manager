@@ -1,0 +1,23 @@
+#!/usr/bin/perl -w
+
+#use lib "/projects/clipart/lib/perl/site_perl/";
+#use lib "/projects/clipart/share/perl/5.8.3/"; # Temporary, until we get stuff installed
+#use lib "/projects/clipart/lib/perl/5.8.3/";   # in the above-listed site_perl directory.
+#use lib "/projects/clipart/share/perl/5.8.4/";
+
+use strict;
+use SOAP::Transport::HTTP;
+use SVG::Metadata;
+use Document::Manager;
+
+# don't want to die on 'Broken pipe' or Ctrl-C
+$SIG{PIPE} = $SIG{INT} = 'IGNORE';
+
+my $daemon = SOAP::Transport::HTTP::Daemon
+    -> new (LocalPort => 8012, Reuse => 1 )
+    -> dispatch_to('Document::Manager')
+    -> options({compress_threshold => 10000})
+    ;
+print "Contact to SOAP server at ", $daemon->url, "\n";
+$daemon->handle;
+

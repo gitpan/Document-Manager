@@ -1,0 +1,39 @@
+#!/usr/bin/perl -w
+
+use lib "/projects/clipart/share/perl/5.8.3/";
+use lib "/projects/clipart/lib/perl/5.8.3/";
+use lib "/projects/clipart/share/perl/5.8.4/";
+use lib "/projects/clipart/lib/perl/5.8.4/";
+
+use SOAP::Lite;
+use strict;
+
+our $opt_debug = 5;
+
+warn "Initiating SOAP call\n" if $opt_debug>3;
+my $soap = SOAP::Lite
+    ->uri('http://www.openclipart.org/Document/Manager')
+    ->proxy('http://www.openclipart.org:8012/')
+    ;
+
+warn "Creating SOAP response object\n" if $opt_debug>3;
+my $dms = $soap
+    -> call(new => 0)
+    -> result;
+
+if (! $dms) {
+    warn "Failed to get a DMS object from server\n";
+    exit -1;
+}
+
+my $result = $soap->query($dms);
+
+if ($result->fault) {
+    print join ', ', $result->faultcode, $result->faultstring;
+    exit -1;
+}
+
+foreach my $row (@{$result->result}) {
+    next unless $row;
+    print $row, "\n";
+}

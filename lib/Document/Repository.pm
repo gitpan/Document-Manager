@@ -602,7 +602,13 @@ sub files {
 =head2 stats()
 
 Returns a hash containing statistics about the document repository as a
-whole, such as number of documents, disk space used, etc.
+whole, including the following:
+
+* num_documents
+* num_revisions
+* disk_space
+* num_files
+* next_id
 
 =cut
 
@@ -628,8 +634,7 @@ sub stats {
     # Number of files
     $stats{num_files} = `find $repo -type f | wc -l`;
 
-    # Number of known users
-
+    # Next document ID number
     $stats{next_id} = $self->{_next_id};
 
     return \%stats;

@@ -30,6 +30,8 @@ my %opts = (
             'VERSION_FROM' => "lib/Document/Manager.pm",
 	    'EXE_FILES'    => [ 
                                 "scripts/dms",
+                                "scripts/dmsd",
+				"scripts/submit_clipart",
 				"scripts/repo_add",
 				"scripts/repo_get",
                                 ], 
@@ -107,7 +109,7 @@ sub MY::postamble {
     my $etcdir   = catdir( $destdir,  'etc', $args{pkg_name} );
     my $etcfiles = catfile( 'etc', "dms.conf" );
   
-    $text .= install_clause($etcfiles, $etcdir, 0);
+#    $text .= install_clause($etcfiles, $etcdir, 0);
 
     return $text;
 }

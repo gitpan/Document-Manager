@@ -1,0 +1,82 @@
+#!/usr/bin/perl -w
+
+# This script scans a directory system full of svg files and submits
+# them to a document management system on localhost, port 8012
+
+use strict;
+use Pod::Usage;
+use Getopt::Long;
+use File::Find;
+use SOAP::Lite;
+use MIME::Base64 qw(encode_base64);
+
+use vars qw($VERSION);
+$VERSION          = '1.00';
+
+our $opt_help     = 0;
+our $opt_man      = 0;
+our $opt_debug    = 0;
+our $opt_version  = 0;
+
+Getopt::Long::Configure ("bundling", "no_ignore_case");
+GetOptions(
+           "version|V",     # Prints the version and exits
+           "help|h",        # Prints a brief help message
+           "man",           # Prints a manpage
+           "debug|D=i",     # Prints debug messages
+           ) or pod2usage(-verbose => 1, -exitstatus => 0);
+
+if ($opt_version) {
+    print "$VERSION\n";
+    exit 0;
+}
+
+pod2usage(-verbose => 2, -exitstatus => 0) if ($opt_man);
+pod2usage(-verbose => 1, -exitstatus => 0) if ($opt_help);
+pod2usage(-verbose => 1, -exitstatus => 0) if (@ARGV < 1);
+
+warn "Initiating SOAP call\n" if $opt_debug>3;
+my $soap = SOAP::Lite
+    ->uri('http://www.openclipart.org/Document/Manager')
+    ->proxy('http://www.openclipart.org:8012/')
+    ;
+
+warn "Creating SOAP response object\n" if $opt_debug>3;
+my $dms = $soap
+    -> call(new => 0)
+    -> result;
+
+if (! $dms) {
+    warn "Failed to get a DMS object from server\n";
+    exit -1;
+}
+
+find({ wanted => \&process_files }, @ARGV);
+
+sub process_files {
+    # Only process SVG files
+    if (! -d && $_ =~ m/\.svg$/i) {
+	my $content = '';
+	my $buf = '';
+
+	# Load data from the file, encode it, and store in $content
+	open(FILE, $File::Find::name) 
+	    or die "Could not open file '$File::Find::name':  $!\n";
+	while (read(FILE, $buf, 60*57)) {
+	    $content .= encode_base64($buf);
+	}
+	close(FILE);
+
+	# Now send the encoded file to the dms server
+	my $result = $soap->add($dms, $File::Find::name, $content);
+
+	my $doc_id = $result->result || 'error';
+
+
+	# Display results of the upload
+	print "$_ -> $doc_id\n";
+    }
+}
+
+__END__
+

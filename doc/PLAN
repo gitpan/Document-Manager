@@ -13,15 +13,39 @@ Milestone 1
 ===========
    * (DONE) soap_client.pl - add capability to add a slew of svg's
    * (DONE) Insert the svg's from the recent release
-   * Evaluate ocal cgi's and scripts to determine DMS needs
-   * Cut a release to CPAN & announce
+   * (DONE) Evaluate ocal cgi's and scripts to determine DMS needs
+   * (DONE) Cut a release to CPAN & announce
 
 Milestone 2
 ===========
+   * (DONE) Report # of docs
+   * Insert the 0.08 release into the dms
    * Make ls_docs display data about the files it lists
-   * Flesh out Document::Manager with more functionality
+   * (DONE) Flesh out Document::Manager with more functionality
+   * Report # pending docs, # new today
+   * Report # authors
+   * Figure out how to specify perl lib paths with env var instead of in
+     scripts
+   * Make dmsd set the DMS location
 
-Milestone 2
+Milestone 3
+===========
+   * Add SOAP routine to add/remove a keyword to a given document
+   * Consider breaking out Document class from Document::Manager
+     or Document::Metadata or Document::Object ?
+   * Implement replacement for PrintSubmittedFilesForMonth(incoming,
+     sort_by=FILEMTIME, sort_order=DESC)
+   * Function for determining if a file has an acceptable file ext
+   * Function for determining if a file has an acceptable mimetype
+   * Function to KeywordList (incl. descriptions)
+   * get_metainfo() - to get keywords; specify sorting criteria & num to
+     retrieve.  Also get license info to validate it's correct.
+   * verify_metadata() - returns error message, if any.
+   * make_thumbnail() - use svg2png - see make-thumbnail
+   * Attach bug report
+   * Set up way to auto-update VERSION (see TT2)
+
+Milestone 5
 ===========
    * Figure out way to add a metadata "object" to Document::Manager
    * Review other DMS capabilities for other cmds to be added
@@ -65,5 +89,7 @@ Future
    * Encryption
    * Import tree (each dir or file representing a document)
    * Generate dist package of some/all documents
-
+   * Different access levels based on group membership
+   * Scheduled changes of access (becomes public on date X)
+   * 
 

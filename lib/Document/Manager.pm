@@ -7,7 +7,18 @@ Document::Manager
 
 my $dms = new Document::Manager;
 
-#TODO - add API
+$dms->checkout($dir, $doc_id, $revision);
+
+$dms->add();
+$dms->checkin();
+$dms->query();
+$dms->revert();
+$dms->lock();
+$dms->unlock();
+$dms->properties();
+$dms->stats();
+
+print $dms->get_error();
 
 =head1 DESCRIPTION
 
@@ -26,9 +37,11 @@ package Document::Manager;
 
 use strict;
 use Document::Repository;
+use MIME::Base64;
+use File::Spec::Functions;
 
 use vars qw($VERSION %FIELDS);
-our $VERSION = '0.08';
+our $VERSION = '0.10';
 
 use fields qw(
               _repository
@@ -59,8 +72,10 @@ sub new {
 
     # TODO:  Load this from a config file
     my $repo_dir = '/var/dms';
-
-    warn "Connecting to repository in '$repo_dir'\n";
+    # Hack for making it work on the OCAL site
+    if (! -e $repo_dir && -e '/projects/clipart/DMS') {
+	$repo_dir = '/projects/clipart/DMS';
+    }
 
     $self->{_repository} = new Document::Repository( repository_dir => $repo_dir );
 
@@ -124,16 +139,41 @@ sub checkout {
 
 =head2 add()
 
+Takes a hash of filenames => content pairs, and inserts each into the dms
+as a separate document.
+
 =cut
 
 sub add {
     my $self = shift;
-    my $doc_id = $self->{_repository}->add(@_);
+    warn "In Document::Manager::add(".join(', ',@_).")\n";
 
-    if (! $doc_id) {
-	warn "Error:  ".$self->{_repository}->get_error()."\n";
+    my (%files) = (@_);
+    my @doc_ids;
+    my $doc_id;
+    foreach my $filename (keys %files) {
+	my $content = $files{$filename};
+	my $local_filename = catfile('/tmp', $filename);
+	my $decoded = decode_base64($content);
+	open(FILE, ">$local_filename");
+	binmode(FILE);
+	print FILE $decoded;
+	close(FILE);
+	warn "File data stored\n";
+
+	$doc_id = $self->{_repository}->add($local_filename);
+	if ($doc_id) {
+	    push @doc_ids, $doc_id;
+	} else {
+	    warn "Error:  ".$self->{_repository}->get_error()."\n";
+	}
+
+	# Remove the temporary file
+	warn "Unlinking temporary file\n";
+	unlink($local_filename);
     }
-    
+
+    warn "Returning doc_id = '$doc_id'\n";
     return $doc_id;
 }
 
@@ -277,15 +317,81 @@ sub properties {
 =head2 stats()
 
 Returns a hash containing statistics about the document repository as a
-whole, such as number of documents, disk space used, etc.
+whole, including the following:
+
+* Stats from Document::Repository::stats()
+* Number of pending documents
+* Number of documents new today
+* Number of authors
 
 =cut
 
 sub stats {
     my $self = shift;
 
-    return $self->{_repository}->stats();
+    my $stats = $self->{_repository}->stats();
+
+    $stats->{num_pending_docs}   = 0;  # TODO
+    $stats->{num_new_today_docs} = 0;  # TODO
+    $stats->{num_authors}        = 0;  # TODO
+
+    return $stats;
 }
 
+=head2 state(doc_id[, state[, comment]])
+
+Gets or sets the state of document in the system.  Returns undef if the 
+specified doc_id does not exist, or does not have a valid state set.
+
+Valid states include:
+
+Unreviewed ---> Rejected
+           \
+            +-> Accepted ---> Broken
+                         \
+                          +-> Retired
+=cut
+
+sub state {
+    my $self = shift;
+    my $doc_id = shift;
+    my $state = shift;
+    my $comment = shift;
+
+    if (! defined $doc_id) {
+	$self->_set_error("No doc_id specified to Document::Manager::state\n");
+	return undef;
+    }
+
+    if (defined $state) {
+	# TODO:  Set the state
+    } else {
+	# TODO:  Get the state
+	$state = 'unknown';
+    }
+
+    return $state;
+}
+
+# TODO:  Applies a converter/translator/test to a document
+sub apply {
+}
+
+# TODO:  Renders a set of docs based on a hierarchy scheme
+sub render {
+}
+
+# TODO:  Aggregates several separate documents into a single one (e.g., newsletter)
+sub aggregate {
+}
+
+# TODO:  Derives a new document from an existing document (e.g. from a template)
+sub branch {
+    # Return new document
+}
+
+# TODO:  Links to another dms system
+sub subscribe {
+}
 
 1;

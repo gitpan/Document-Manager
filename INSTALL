@@ -12,7 +12,7 @@ give the sequence of commands
 
 If you want to install the script in your own private space, use
 
- $ perl Makefile.PL PREFIX=/home/joeuser \
+ $ perl Makefile.PL PREFIX=/home/joeuser DESTDIR=/home/joeuser \
         INSTALLMAN1DIR=/home/joeuser/man/man1 \
         INSTALLMAN3DIR=/home/joeuser/man/man3      
  $ make
