@@ -1,0 +1,42 @@
+TODO
+----
+   * (DONE) Add $self to all new routines
+   * (DONE) Put pseudocode for all new routines
+   * (DONE) Review existing routines for possible bits to extract
+   * (DONE) Consider renaming Document::Manager to Document::Repository
+   * Ideally, documents() should never encounter an error condition...
+   * Should Document::Repository::add() really be put()?
+   * Add error_msg handling for new routines
+   * Document inputs/outputs for all new routines
+   * Post to CPAN
+   * Should Document::Repository really die in its new() routine?
+   * Add logging / changelog
+   * Persist the next_id so it can be loaded...
+   * Access Control Lists?
+   * delete/undelete
+   * Attachment of notes (or should this be done as metadata?)
+   * diff's
+   * content search
+   * What to do about localization, translations, etc.?
+   * Document format conversion (to pdf, png, html, etc.)
+   * Triggers / Events - whenever a change occurs, listeners are notified
+   * Automatic distribution - either on triggers or scheduled
+   * Status watching (notify when quantity of files reaches threshholds, etc.)
+   * Conversion of mail to DMS
+   * Repackaging (tar.gz / zip)
+   * File system mapping (webdav, etc.)
+   * Create docs like at
+     http://pwp.netcabo.pt/users/1/0154115101/software/newdocms/technical-info.html
+   * Consider caching of query results
+   * Get deleted document list
+   * Purge (permanently remove deleted documents)
+   * Prune (permanently remove old revisions of documents)
+   * Archive (creates backup of some or all of repository for
+     backup/pruning)
+   * Compress (compresses past versions of documents)
+   * On the fly (de)compression
+   * Apply hierarchical organization based on metadata
+   * Thumbnails
+   * Encryption
+   * Import tree (each dir or file representing a document)
+   * Generate dist package of some/all documents

@@ -83,6 +83,12 @@ sub new {
     $self->{_repository_permissions} ||= '0700';
     $self->{_next_id} = 1;
 
+    # If caller has requested doing initialization, do that as well
+    if ($args{create_new_repository}) {
+	$self->_init($self->{_repository_dir}, 
+		     $self->{_repository_permissions});
+    }
+
     # Verify everything is sane...
     if (! -d $self->{_repository_dir} ) {
 	die "Repository directory '" . $self->{_repository_dir} . "' does not exist\n";
@@ -110,6 +116,37 @@ sub new {
     }
 
     return $self;
+}
+
+# Establishes a new directory for a document repository.
+# Basically just does a mkdir after validating the inputs.
+sub _init {
+    my $self = shift;
+    my $dir = shift;
+    my $perms = shift;
+
+    if (! $dir) {
+	$self->_set_error("Undefined repository dir '$dir' specified to _init()");
+	return undef;
+    }
+
+    if (-d $dir && ! -x $dir) {
+	$self->_set_error("Repository dir '$dir' exists but is not accessible");
+	return undef;
+    }
+
+    if (-f $dir && ! -d $dir) {
+	$self->_set_error("New repository '$dir' exists as a file, not as a dir");
+	return undef;
+    }
+
+    if (! -d $dir) {
+	eval { mkpath([$dir], 0, oct($perms)) };
+	if ($@) {
+	    $self->_set_error("Error creating repository '$dir':  $@");
+	    return undef;
+	}
+    }
 }
 
 sub _set_error {
@@ -246,8 +283,10 @@ sub add {
 	return undef;
     }
 
+    my ($vol,$dirs,$base_filename) = splitpath( $filename );
+
     # Install the file into the repository
-    if (! copy($filename, catfile($repo, $filename)) ) {
+    if (! copy($filename, catfile($repo, $base_filename)) ) {
 	$self->_set_error("Error copying '$filename' to repository: $!");
 	return undef;
     }

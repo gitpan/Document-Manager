@@ -1,0 +1,15 @@
+# http://module-build.sourceforge.net/META-spec.html
+name:         Document-Manager
+version_from: lib/Document/Manager.pm
+installdirs:  site
+requires:
+    Carp:           1.01
+    File::Spec:     0.83
+    Pod::Usage:     1.14
+    Getopt::Long:   2.32
+    File::Copy:     2.05
+    File::Path:     1.05
+    File::Find:     1.04
+
+distribution_type: module
+generated_by: ExtUtils::MakeMaker version 6.17
