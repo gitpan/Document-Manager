@@ -31,6 +31,7 @@ my %opts = (
 	    'EXE_FILES'    => [ 
                                 "scripts/dms",
 				"scripts/repo_add",
+				"scripts/repo_get",
                                 ], 
             'PREREQ_PM' => {
                 'Carp'          => 1.01,

@@ -31,7 +31,7 @@ package Document::Manager;
 use strict;
 
 use vars qw($VERSION %FIELDS);
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use fields qw(
               _repository
