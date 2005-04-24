@@ -29,7 +29,6 @@ my %opts = (
             'NAME'	   => $args{'name'},
             'VERSION_FROM' => "lib/Document/Manager.pm",
 	    'EXE_FILES'    => [ 
-                                "scripts/dms",
                                 "scripts/dmsd",
 				"scripts/submit_clipart",
 				"scripts/repo_add",
@@ -44,7 +43,7 @@ my %opts = (
                 'File::Path'    => 1.05,
                 'File::Find'    => 1.04,
                 },
-	    'AUTHOR' => 'Bryce Harrington <bryce@bryceharrington.com>',
+	    'AUTHOR' => 'Bryce Harrington <bryce@bryceharrington.org>',
 	    'ABSTRACT' => 'Manages collection of revision-controlled docs'
 );
 

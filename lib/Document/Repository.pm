@@ -69,8 +69,6 @@ sub new {
     my $class = ref($this) || $this;
     my $self = bless [\%FIELDS], $class;
 
-    warn "Creating new Document::Repository\n";
-
     while (my ($field, $value) = each %args) {
 	if (exists $FIELDS{"_$field"}) {
 	    $self->{"_$field"} = $value;
@@ -80,22 +78,17 @@ sub new {
 	}
     }
 
-    warn "Specifying defaults in Document::Repository\n";
-
     # Specify defaults
     $self->{_repository_dir} ||= '/var/dms';
     $self->{_repository_permissions} ||= '0700';
     $self->{_next_id} = 1;
-
-    warn "Initializing Document::Repository\n";
+    $self->{_debug} ||= 0;
 
     # If caller has requested doing initialization, do that as well
     if ($args{create_new_repository}) {
 	$self->_init($self->{_repository_dir}, 
 		     $self->{_repository_permissions});
     }
-
-    warn "Verifying\n";
 
     # Verify everything is sane...
     if (! -d $self->{_repository_dir} ) {
@@ -104,8 +97,6 @@ sub new {
     if (! -x $self->{_repository_dir} ) {
 	$self->dbg("Repository directory '" . $self->{_repository_dir} . "' is not accessible\n", 1);
     }
-
-    warn "Determining next id\n";
 
     # Determine what the next id is based on the maximum document id number
     foreach my $doc_id ($self->documents()) {
@@ -117,8 +108,6 @@ sub new {
 	}
     }
 
-    warn "Printing settings...\n";
-
     if ($self->{_debug} > 4 or 1==1) {
 	warn "Document::Repository settings:\n";
 	warn "  debug                  = $self->{_debug}\n";
@@ -126,8 +115,6 @@ sub new {
 	warn "  repository_permissions = $self->{_repository_permissions}\n";
 	warn "  next_id                = $self->{_next_id}\n";
     }
-
-    warn "Returning...\n";
 
     return $self;
 }
@@ -436,6 +423,98 @@ sub get {
 	}
     }
     return @files;
+}
+
+=head2 content( $filename, $doc_id [, $revision] )
+
+Retrieves the contents of a file within the given document id.
+
+Returns undef and sets an error (retrievable via get_error() if there is
+any problem.
+
+=cut
+sub content {
+    my $self = shift;
+    my $filename = shift || return undef;
+    my $doc_id = shift || return undef;
+    my $revision = shift;
+
+    my $doc_path = $self->repository_path($doc_id) || return undef;
+
+    # Default $revision to current revision if not specified
+    $revision ||= $self->current_revision($doc_id, $doc_path);
+
+    my $file = catfile($doc_path,
+		       sprintf("%03d", $revision),
+		       $filename);
+    if (! -e $file) {
+	$self->_set_error("File '$file' does not exist\n");
+	return undef;
+    }
+
+    if (! open(FILE, "< $file")) {
+	$self->_set_error("Could not open file '$file': $?\n");
+	return undef;
+    }
+
+    # Open the file and read in the content from it
+    my $content = '';
+    while (<FILE>) {
+	$content .= $_;
+    }
+    close(FILE);
+
+    return $content;
+}
+
+=head2 update( $filename, $doc_id, $content[, $append] )
+
+This routine alters a file within the repository without creating a new 
+revision number to be generated.  This is not intended for regular use
+but instead for adding comments, updating metadata, etc.
+
+By default, update() replaces the existing file.  If $append is defined,
+however, update() will append $content onto the end of the file (such as
+for logs).  Note that no separation characters are inserted, so make sure
+to add newlines and record delimiters if you need them.
+
+Returns a true value if the file was successfully updated, or undef on 
+any error.  Retrieve the error via get_error();
+
+=cut
+sub update {
+    my $self = shift;
+    my $filename = shift || return undef;
+    my $doc_id = shift || return undef;
+    my $content = shift;
+    my $append = shift;
+
+    if (! defined $content) {
+	$self->_set_error("Undefined content not allowed\n");
+	return undef;
+    }
+
+    my $doc_path = $self->repository_path($doc_id) || return undef;
+
+    # Default $revision to current revision if not specified
+    my $revision = $self->current_revision($doc_id, $doc_path);
+
+    my $file = catfile($doc_path,
+		       sprintf("%03d", $revision),
+		       $filename);
+    if (! -e $file) {
+	$self->_set_error("File '$file' does not exist\n");
+	return undef;
+    }
+
+    my $w = ($append)? ">>" : ">";
+    if (! open(FILE, "$w $file")) {
+	$self->_set_error("Could not open '$file' for writing:  $?\n");
+	return undef;
+    }
+    print FILE $content;
+    close(FILE);    
+    return 1;
 }
 
 # Recursively iterates through the document repository, running the

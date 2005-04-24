@@ -1,7 +1,8 @@
 
 =head1 NAME
 
-Document::Manager
+Document::Manager - A web service for managing documents in a central
+repository.
 
 =head1 SYNOPSIS
 
@@ -22,11 +23,11 @@ print $dms->get_error();
 
 =head1 DESCRIPTION
 
-This module provides a simple interface for managing a collection of
-revision-controlled documents.  A document is a collection of one or
-more files that are checked out, modified, and checked back in as a
-unit.  Each revision of a document is numbered, and documents can be
-reverted to older revisions if needed.  A document can also have an
+B<Document::Manager> provides a simple interface for managing a
+collection of revision-controlled documents.  A document is a collection
+of one or more files that are checked out, modified, and checked back in
+as a unit.  Each revision of a document is numbered, and documents can
+be reverted to older revisions if needed.  A document can also have an
 arbitrary set of metadata associated with it.
 
 =head1 FUNCTIONS
@@ -34,63 +35,80 @@ arbitrary set of metadata associated with it.
 =cut
 
 package Document::Manager;
+@Document::Manager::ISA = qw(WebService::TicketAuth::DBI);
 
 use strict;
+use Config::Simple;
+use WebService::TicketAuth::DBI;
 use Document::Repository;
+use Document::Object;
 use MIME::Base64;
 use File::Spec::Functions;
+use DBI;
+
+my $config_file = "/etc/webservice_dms/dms.conf";
 
 use vars qw($VERSION %FIELDS);
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
+use base 'WebService::TicketAuth::DBI';
 use fields qw(
-              _repository
+	      repo_dir
+              repository
               _error_msg
+	      _debug
+	      _dbh
               );
 
 
-=head2 new($confighash)
+=head2 new()
 
 Creates a new document manager object.  
 
 =cut
 
 sub new {
-    my ($this, %args) = @_;
-    my $class = ref($this) || $this;
-    my $self = bless [\%FIELDS], $class;
+    my $class = shift;
+    my Document::Manager $self = fields::new($class);
 
-    # TODO:  Hmm, I probably should not allow callers to set _repository or _error_msg
-    while (my ($field, $value) = each %args) {
-	if (exists $FIELDS{"_$field"}) {
-	    $self->{"_$field"} = $value;
-	    if ($args{debug} && $args{debug}>3 && defined $value) {
-		warn 'Setting Document::Manager::_'.$field." = $value\n";
-	    }
-	}
+    # Load up configuration parameters from config file
+    my %config;
+    my $errormsg = '';
+    if (! Config::Simple->import_from($config_file, \%config)) {
+        $errormsg = "Could not load config file '$config_file': " .
+            Config::Simple->error()."\n";
     }
 
-    # TODO:  Load this from a config file
-    my $repo_dir = '/var/dms';
-    # Hack for making it work on the OCAL site
-    if (! -e $repo_dir && -e '/projects/clipart/DMS') {
-	$repo_dir = '/projects/clipart/DMS';
+    $self->SUPER::new(%config);
+
+    if (defined $config{'repo_dir'}) {
+	$self->{'repo_dir'} = $config{'repo_dir'};
     }
 
-    $self->{_repository} = new Document::Repository( repository_dir => $repo_dir );
+    $self->{repository} = new Document::Repository( repository_dir => $self->{'repo_dir'} );
 
-    if (! $self->{_repository}) {
+    if (! $self->{repository}) {
+	$self->_set_error("Could not connect to repository\n");
 	warn "Error:  Could not establish connection to repository\n";
-    } else {
-	warn "Okay, got connection to repository.\n";
     }
 
     return $self;
 }
 
+sub _repo {
+    my $self = shift;
+
+    if (! defined $self->{repository}) {
+	$self->{'repository'} = 
+	    new Document::Repository( repository_dir => $self->{'repo_dir'} );
+    }
+    return $self->{'repository'};
+}
+
+# Internal routine for setting the error message
 sub _set_error {
     my $self = shift;
-    $self->{_error_msg} = shift;
+    $self->{'_error_msg'} = shift;
 }
 
 =head2 get_error()
@@ -101,7 +119,7 @@ Retrieves the most recent error message
 
 sub get_error {
     my $self = shift;
-    return $self->{_error_msg};
+    return $self->{'_error_msg'};
 }
 
 =head2 checkout()
@@ -134,7 +152,7 @@ sub checkout {
 	return undef;
     }
 
-    return $self->{_repository}->get($doc_id, $revision, $dir);
+    return $self->_repo()->get($doc_id, $revision, $dir);
 }
 
 =head2 add()
@@ -161,11 +179,12 @@ sub add {
 	close(FILE);
 	warn "File data stored\n";
 
-	$doc_id = $self->{_repository}->add($local_filename);
+	$doc_id = $self->_repo()->add($local_filename);
 	if ($doc_id) {
 	    push @doc_ids, $doc_id;
 	} else {
-	    warn "Error:  ".$self->{_repository}->get_error()."\n";
+	    $self->_set_error($self->_repo()->get_error());
+	    warn "Error:  ".$self->_repo()->get_error()."\n";
 	}
 
 	# Remove the temporary file
@@ -195,7 +214,7 @@ sub checkin {
 	return undef;
     }
 
-    my $new_revision = $self->{_repository}->put($doc_id, @files);
+    my $new_revision = $self->_repo()->put($doc_id, @files);
 
     # TODO log / trigger notifications
     return $new_revision;
@@ -222,7 +241,7 @@ sub query {
     my %ob2 = ('foo' => 2, 'bar' => 4);
     my %ob3 = ('foo' => 3, 'bar' => 6);
 
-    my @objs = $self->{_repository}->documents();
+    my @objs = $self->_repo()->documents();
     return \@objs;
 }
 
@@ -245,7 +264,10 @@ sub revert {
 
     my $current_revision = 42;
     if ($new_revision >= $current_revision) {
-	# TODO:  Error - this revision number is too high
+	$self->_set_error("The specified new revision number '"
+			  .$new_revision."' is higher than the "
+			  ."current revision number '$current_revision'");
+	return undef;
     }
 
     # get the old revision of the document
@@ -303,15 +325,22 @@ sub properties {
     my $doc_id = shift;
 
     # Given a valid document id
-    if (! $doc_id || $doc_id != /^\d+/) {
-	$self->_set_error("Invalid doc_id specified to checkout()");
+    if (! $doc_id || ($doc_id !~ /^\d+/)) {
+	$self->_set_error("Invalid doc_id specified to properties()");
+	print "Document id '$doc_id' provided to properties()\n";
 	return undef;
     }
 
     # Retrieve the properties for this document
-    my $properties = '';
+    my $doc = new Document::Object(repository => $self->_repo(),
+				   doc_id     => $doc_id);
 
-    return $properties;
+    if (@_) {
+	my %properties = @_;
+	return 1;
+    } else {
+	return $doc->properties();
+    }
 }
 
 =head2 stats()
@@ -329,7 +358,7 @@ whole, including the following:
 sub stats {
     my $self = shift;
 
-    my $stats = $self->{_repository}->stats();
+    my $stats = $self->_repo()->stats();
 
     $stats->{num_pending_docs}   = 0;  # TODO
     $stats->{num_new_today_docs} = 0;  # TODO
@@ -375,23 +404,90 @@ sub state {
 
 # TODO:  Applies a converter/translator/test to a document
 sub apply {
+    my $self = shift;
+    return 'Unimplemented';
 }
 
 # TODO:  Renders a set of docs based on a hierarchy scheme
 sub render {
+    my $self = shift;
+    return 'Unimplemented';
 }
 
 # TODO:  Aggregates several separate documents into a single one (e.g., newsletter)
 sub aggregate {
+    my $self = shift;
+    return 'Unimplemented';
 }
 
 # TODO:  Derives a new document from an existing document (e.g. from a template)
 sub branch {
+    my $self = shift;
+    return 'Unimplemented';
     # Return new document
 }
 
 # TODO:  Links to another dms system
 sub subscribe {
+    my $self = shift;
+    return 'Unimplemented';
+}
+
+sub metrics_pending_docs {
+    my $self = shift;
+    return 'Unimplemented';
+}
+
+sub metrics_new_docs_today {
+    my $self = shift;
+    return 'Unimplemented';
+}
+
+sub metrics_new_docs_this_month {
+    my $self = shift;
+    return 'Unimplemented';
+}
+
+sub metrics_authors {
+    my $self = shift;
+    return 'Unimplemented';
+}
+
+sub keyword_add {
+    my $self = shift;
+    return 'Unimplemented';
+}
+
+sub keyword_remove {
+    my $self = shift;
+    return 'Unimplemented';
+}
+
+# Determines if function has valid extension and/or mimetype
+sub validate_document_type {
+    my $self = shift;
+    return 'Unimplemented';
+}
+
+sub validate_properties {
+    my $self = shift;
+    return 'Unimplemented';
+}
+
+sub make_thumbnail {
+    my $self = shift;
+    return 'Unimplemented';
+}
+
+# Reporting issues/bugs about a document
+sub issue {
+    my $self = shift;
+    return 'Unimplemented';
+}
+
+sub comment {
+    my $self = shift;
+    return 'Unimplemented';
 }
 
 1;

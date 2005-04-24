@@ -19,14 +19,21 @@ Milestone 1
 Milestone 2
 ===========
    * (DONE) Report # of docs
-   * Insert the 0.08 release into the dms
-   * Make ls_docs display data about the files it lists
    * (DONE) Flesh out Document::Manager with more functionality
+   * (DONE) Consider if I should create a WebService::DocSys module? - no
+   * (DONE) Make ls_docs display data about the files it lists
+
+   * Test storing of content via D::Object::content()
+   * Test getting and setting state of a Document::Object
+   * Create a better way of setting default metadata
+   * Flesh out POD in submit_clipart
+   * Insert the latest release into the dms
    * Report # pending docs, # new today
    * Report # authors
    * Figure out how to specify perl lib paths with env var instead of in
      scripts
    * Make dmsd set the DMS location
+   * Determine how to set up certs for openclipart
 
 Milestone 3
 ===========
@@ -44,6 +51,12 @@ Milestone 3
    * make_thumbnail() - use svg2png - see make-thumbnail
    * Attach bug report
    * Set up way to auto-update VERSION (see TT2)
+
+Milestone 4
+===========
+   * Implement a simple commenting system
+   * In Document::Object, can I eliminate the extra asserts by doing
+     them in the new() function?
 
 Milestone 5
 ===========
