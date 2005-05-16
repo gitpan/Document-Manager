@@ -429,6 +429,9 @@ sub get {
 
 Retrieves the contents of a file within the given document id.
 
+If the specified filename is actually a directory, returns an array of
+the files in that directory, instead.
+
 Returns undef and sets an error (retrievable via get_error() if there is
 any problem.
 
@@ -447,6 +450,15 @@ sub content {
     my $file = catfile($doc_path,
 		       sprintf("%03d", $revision),
 		       $filename);
+    if (-d $file) {
+	my @files;
+	opendir(DIR, $file) or return undef;
+	while (defined(my $dir_content = readdir(DIR))) {
+	    push @files, $dir_content;
+	}
+	return @files;
+    }
+
     if (! -e $file) {
 	$self->_set_error("File '$file' does not exist\n");
 	return undef;
@@ -502,19 +514,16 @@ sub update {
     my $file = catfile($doc_path,
 		       sprintf("%03d", $revision),
 		       $filename);
-    if (! -e $file) {
-	$self->_set_error("File '$file' does not exist\n");
-	return undef;
-    }
 
     my $w = ($append)? ">>" : ">";
     if (! open(FILE, "$w $file")) {
 	$self->_set_error("Could not open '$file' for writing:  $?\n");
 	return undef;
     }
+    warn "Writing content to file '$file'\n";
     print FILE $content;
-    close(FILE);    
-    return 1;
+    warn "Successfully wrote file\n";
+    return close(FILE);    
 }
 
 # Recursively iterates through the document repository, running the

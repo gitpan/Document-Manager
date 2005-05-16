@@ -7,7 +7,7 @@ Document::Object
 
 my $doc = new Document::Object;
 
-$doc->state($state, $comment);
+$doc->state($state);
 
 my $cid = $doc->comment( undef,
 			 { author => "Me",
@@ -49,6 +49,7 @@ use fields qw(
 	      _repository
 	      _doc_id
 	      _metadata
+	      _error_msg
 	      _STATES
 	      );
 
@@ -63,14 +64,16 @@ sub new {
     my $class = ref($this) || $this;
     my $self = bless [\%FIELDS], $class;
 
-    # TODO:  Flesh this out
     $self->{'_repository'} = $args{'repository'};
     $self->{'_doc_id'} = $args{'doc_id'};
+
+    # Allowed states
     $self->{'_STATES'} = { 'new' => 1,
 			   'open' => 1,
 			   'accepted' => 1,
 			   'rejected' => 1,
-			   'problem' => 1
+			   'broken' => 1,
+			   'retired' => 1
 			   };
 
     return $self;
@@ -78,32 +81,50 @@ sub new {
 
 sub _set_error {
     my $self = shift;
-    $self->{_error_msg} = shift;
+    $self->{'_error_msg'} = shift;
 }
 
 =head2 get_error()
 
-Retrieves the most recent error message
+Returns the most recent error message
 
 =cut
 
 sub get_error {
     my $self = shift;
-    return $self->{_error_msg};
+    return $self->{'_error_msg'};
 }
 
 
-=head2 log
+=head2 log($comment)
 
-Gets or adds comments in change log
+Gets or adds comments in change log.  Returns undef on error.
 
 =cut
 
 sub log {
     my $self = shift;
-    my $comment = "";
+    my $comment = shift;
 
-    return $comment;
+    if (! defined $self->{'_repository'}) {
+	$self->set_error("Repository not defined in log()\n");
+	return undef;
+    }
+
+    if (! $self->{_doc_id}) {
+	$self->set_error("document id not defined in content()\n");
+	return undef;
+    }
+
+    if (defined $comment) {
+	return $self->{'_repository'}->update("CHANGELOG",
+					      $self->{'_doc_id'},
+					      $comment,
+					      1);
+    } else {
+	return $self->{'_repository'}->content("CHANGELOG",
+					       $self->{'_doc_id'});
+    }
 }
 
 =head2 content($filename[, $content])
@@ -120,27 +141,38 @@ sub content {
 
     if (! defined $self->{'_repository'}) {
 	$self->set_error("Repository not defined in content()\n");
+	warn $self->get_error();
 	return undef;
     }
 
     if (! $self->{_doc_id}) {
 	$self->set_error("document id not defined in content()\n");
+	warn $self->get_error();
 	return undef;
     }
 
+    my $retval;
     if (defined $content) {
-	return $self->{'_repository'}->update($filename,
-					      $self->{'_doc_id'},
-					      $content);
+	warn "Creating/Updating '$filename'...\n";
+	$retval = $self->{'_repository'}->update($filename,
+						 $self->{'_doc_id'},
+						 $content);
     } else {
-	return $self->{'_repository'}->content($filename,
-					       $self->{'_doc_id'});
+	warn "Retrieving...\n";
+	$retval = $self->{'_repository'}->content($filename,
+						  $self->{'_doc_id'});
     }
+    $self->_set_error($self->{'_repository'}->get_error());
+    if (! $retval) {
+	warn $self->{'_repository'}->get_error();
+	warn "Returning value '$retval'\n";
+    }
+    return $retval;
 }
 
 # TODO:  Implement a 'dirty' flag to tell if doc has been changed
 
-=head2 state([$state[, $comment]])
+=head2 state([$state])
 
 Gets or sets the state of the document.
 
@@ -149,22 +181,22 @@ Gets or sets the state of the document.
 sub state {
     my $self = shift;
     my $state = shift;
-    my $comment = shift;
 
-    if (! defined $state) {
-	return $self->{_state};
-    } elsif(! defined $self->{_STATES}->{$state}) {
-	$self->_set_error("Invalid state '$state'\n");
-	return undef;
+    if (defined $state) {
+	if (! defined $self->{_STATES}->{$state}) {
+	    $self->_set_error("Invalid state '$state'\n");
+	    return undef;
+	} else {
+	    return $self->properties('state', $state);
+	}
     } else {
-	$self->{_state} = $state;
-	return $self->{_state};
+	return $self->properties()->{'state'};
     }
 }
 
 =head2 properties()
 
-Returns a hash of general properties about the document
+Gets or updates general properties about the document
 
 =cut
 
@@ -174,7 +206,7 @@ sub properties {
     if (! $self->{'_metadata'}) {
 	# This should probably be replaced by something more sophisticated,
 	# however, this'll probably be reasonably efficient for now.
-	foreach ($self->content('METADATA')) {
+	foreach (split /\n/, $self->content('METADATA')) {
 	    s/#.*//;
 	    s/^\s+//;
 	    s/\s+$//;
@@ -185,11 +217,13 @@ sub properties {
     }
 
     if (@_) {
-	while (my ($key, $value) = each %{@_}) {
+	my %props = @_;
+	while (my ($key, $value) = each %props) {
 	    $self->{'_metadata'}->{$key} = $value;
 	}
 	return $self->_store_properties();
     } elsif (! $self->{'_metadata'}) {
+	warn "Defaulting _metadata\n";
 	$self->{'_metadata'}->{title} = 'unknown';
 	$self->{'_metadata'}->{state} = 'unknown';
 	$self->{'_metadata'}->{size} = -1;
@@ -203,14 +237,15 @@ sub properties {
 sub _store_properties {
     my $self = shift;
 
+    warn "_store_properties()\n";
+
     my $content = '';
     foreach my $key (sort keys %{$self->{'_metadata'}}) {
 	my $value = $self->{'_metadata'}->{$key};
 	$content .= "$key = $value\n";
     }
-    $self->content('METADATA', $content);
-
-    return 1;
+    warn "Storing METADATA:\n $content\n";
+    return $self->content('METADATA', $content);
 }
 
 sub diff {
@@ -227,7 +262,7 @@ sub diff {
 
 Gets or sets the comment information for a given comment ID $cid,
 or adds a new $comment if $cid is not defined, or returns all of
-the comments if neither parameter is specified.
+the comments as an array if neither parameter is specified.
 
 =cut
 
@@ -236,20 +271,44 @@ sub comment {
     my $cid = shift;
     my $comment = shift;
 
+    if (! defined $self->{'_repository'}) {
+	$self->set_error("Repository not defined in log()\n");
+	return undef;
+    }
+
+    if (! $self->{_doc_id}) {
+	$self->set_error("document id not defined in content()\n");
+	return undef;
+    }
+
     if (defined $cid) {
-	# TODO:  Load the given comment
 	if (defined $comment) {
-	    # TODO:  Update the comment
+	    return $self->{'_repository'}->update("COMMENTS/$cid",
+						  $self->{'_doc_id'},
+						  $comment
+						  );
 	} else {
-	    # TODO:  Return the comment
+	    return $self->{'_repository'}->content("CHANGELOG/$cid",
+						   $self->{'_doc_id'});
 	}
     } else {
 	if (defined $comment) {
-	    # TODO:  Create a new comment
+	    return $self->{'_repository'}->update("COMMENTS/001",
+						  $self->{'_doc_id'},
+						  $comment
+						  );
 	} else {
-	    # TODO:  Return array of all comments
+	    my %comments;
+	    foreach my $file ($self->{'_repository'}->content("CHANGELOG/",
+							      $self->{'_doc_id'})) {
+		$comments{$file} = $self->{'_repository'}->content("CHANGELOG/$file",
+							      $self->{'_doc_id'});
+	    }
+	    return \%comments;
 	}
     }
+    
+    return undef;
 }
 
 =head2 keywords([@keywords])
@@ -299,6 +358,5 @@ sub watcher {
 }
 
 1;
-__END__
 
-# TODO:  Docs
+

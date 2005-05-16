@@ -6,13 +6,14 @@ use File::Basename;
 use File::Spec::Functions qw|:ALL|;
 use Config;
 
+my $default_conf = '/etc/webservice_dms/dms.conf';
 # Grab out any custom cmdline args
 my %args = (
             pkg_name  => 'dms',
             name      => 'Document-Manager',
+	    conf      => $default_conf,
             DESTDIR   => undef
             );
-
 my @pass_args;
 while (my $arg = shift @ARGV) {
     my ($key, $value) = split /=/, $arg;
@@ -109,6 +110,15 @@ sub MY::postamble {
     my $etcfiles = catfile( 'etc', "dms.conf" );
   
 #    $text .= install_clause($etcfiles, $etcdir, 0);
+
+    if ($args{conf} ne $default_conf) {
+	# Substitute config file location into perl module
+	# (Yes, this is a bit of a hack...  I'd love to have a better way...)
+	$text .= "all :: \$(INST_LIB)/Document/Manager.pm\n";
+	$text .= "\techo Setting config path location in Document::Manager\n";
+	$text .= qq|\t\$(PERL) -pi -e 's#$default_conf#$args{conf}#g' \$(INST_LIB)/Document/Manager.pm|;
+	$text .= "\n\n";
+    }
 
     return $text;
 }

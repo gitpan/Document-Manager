@@ -16,7 +16,7 @@ our $opt_help;
 our $opt_man;
 our $opt_resource = 'http://www.openclipart.org/Document/Manager';
 our $opt_server   = 'http://localhost:8012/';
-our $opt_debug = 5;
+our $opt_debug    = 0;
 
 # Handle commandline options
 Getopt::Long::Configure ('bundling', 'no_ignore_case');
@@ -31,7 +31,7 @@ GetOptions(
 
 # Handle -V or --version
 if ($opt_version) {
-    print '$0: $Revision: 1.6 $', "\n";
+    print '$0: $Revision: 1.7 $', "\n";
     exit 0;
 }
 
@@ -44,11 +44,11 @@ exit main();
 
 sub main {
     # Connect to the server
-    warn "Connecting to server...\n";
+    warn "Connecting to server...\n" if $opt_debug>1;
     my $soap = create_soap_instance($opt_resource, $opt_server);
 
     # Create the test service object
-    warn "Creating the DMS object\n";
+    warn "Creating the DMS object\n" if $opt_debug>1;
     my $response = $soap->call(new => 1);
     soap_assert($response);
     my $dms = $response->result;
@@ -61,11 +61,12 @@ sub main {
     soap_assert($response);
 
     if (! $response->result) {
-	warn "No results received\n";
+	warn "No results received\n" if $opt_debug>0;
 	return -1;
     }
 
     use Data::Dumper;
+    printf("%-8s  %-24s  %-8s  %-8s  %-12s\n", 'ID', 'Title', 'State', 'Size', 'Date');
     foreach my $doc_id (@{$response->result}) {
 	next unless $doc_id;
 	$response = $soap->properties($dms, $doc_id);
@@ -80,8 +81,10 @@ sub main {
 	    }
 	    next;
 	}
-	printf("%8d  %38s  %8d  %12s\n", $doc_id, 
+	printf("%08d  %-24s  %-8s  %-8s  %-12s\n", 
+	       $doc_id, 
 	       ($properties->{'title'} or ''), 
+	       ($properties->{'state'} or ''), 
 	       ($properties->{'size'} or ''), 
 	       ($properties->{'date'} or '')
 	       );
@@ -178,7 +181,7 @@ modify it under the same terms as Perl itself.
 
 =head1 REVISION
 
-Revision: $Revision: 1.6 $
+Revision: $Revision: 1.7 $
 
 =cut
 

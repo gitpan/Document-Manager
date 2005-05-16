@@ -16,26 +16,67 @@ Milestone 1
    * (DONE) Evaluate ocal cgi's and scripts to determine DMS needs
    * (DONE) Cut a release to CPAN & announce
 
-Milestone 2
+Milestone 2 - Get basics in place
 ===========
    * (DONE) Report # of docs
    * (DONE) Flesh out Document::Manager with more functionality
    * (DONE) Consider if I should create a WebService::DocSys module? - no
    * (DONE) Make ls_docs display data about the files it lists
+   * (DONE) Figure out way to add a metadata "object" to Document::Manager
+   * (DONE) Update this plan
+   * (DONE) Flesh out POD in submit_clipart
+   * (DONE) Scope out a simple test to upload/download 4 files through SOAP
+   * (DONE) Figure out why ls_docs doesn't work on fdo
+   * (DONE) Allow overriding config file location via Makefile.PL
 
    * Test storing of content via D::Object::content()
-   * Test getting and setting state of a Document::Object
-   * Create a better way of setting default metadata
-   * Flesh out POD in submit_clipart
+   * Test getting and setting state via D::Object::state()
+   * Implement MIME decode downloading in a get_clipart script
+   * Do a new release
+   * Install onto openclipart site
+
+Milestone 3 - Get it to do something useful
+===========
+   * Hook up a simple way to alter the keywords for an SVG file
    * Insert the latest release into the dms
+   * Set up a preliminary dms-client-cgi package
+   * dms-client-cgi:  Make it generate a list of docs
+   * dms-client-cgi:  Allow it to change the state of a document
+   * Write a cmdline script to create a dist tarball of the clipart
+   * Create tests to do a basic perl -c on each script
+   * Storing templates in dms?
+   * Add POD for all of Document::Object's routines
+   * Add detailed POD for all of Document::Manager's routines
+   * Test adding keywords, that they don't replace other defined keywords
+
+Milestone 4
+===========
+   * Bundle CGI::Builder::TT2, etc. into a cgi package
+   * Create a TT2 template from http://openclipart.org/cgi-bin/upload_svg.cgi
+   * Create a simple CGI::Builder replacement for upload_svg.cgi
+   * Make the CGI::Builder cgi do SOAP calls
+   * Decide if submit_clipart and get_clipart should be renamed
+   * Split out the submit_clipart and get_clipart to a client package
+   * Should I make some client libs to abstract the SOAP stuff better?
+   * Change get_error() to errormsg() throughout
+   * Research more generalized ways of handling file metadata for
+     non-svg, and plan implementation of it
+   * Implement a to_hash() function in SVG::Metadata and update
+     Document::Manager::add() to use it.
+   * Look at Document::Archive::create_document() for Document::Manager::add()
+
+Milestone 5
+===========
+   * Create a better way of setting default metadata
    * Report # pending docs, # new today
    * Report # authors
    * Figure out how to specify perl lib paths with env var instead of in
      scripts
    * Make dmsd set the DMS location
    * Determine how to set up certs for openclipart
+   * Investigate http://freshmeat.net/projects/libextractor/
 
-Milestone 3
+Milestone 6
 ===========
    * Add SOAP routine to add/remove a keyword to a given document
    * Consider breaking out Document class from Document::Manager
@@ -52,17 +93,21 @@ Milestone 3
    * Attach bug report
    * Set up way to auto-update VERSION (see TT2)
 
-Milestone 4
+Milestone 7
 ===========
    * Implement a simple commenting system
    * In Document::Object, can I eliminate the extra asserts by doing
      them in the new() function?
 
-Milestone 5
+Milestone 8
 ===========
-   * Figure out way to add a metadata "object" to Document::Manager
    * Review other DMS capabilities for other cmds to be added
    * Plan out how / if I should add a db for caching info
+
+Milestone 10
+============
+   * Investigate benefit of replacing backend with XFS file system
+   * Investigate methods of caching the state in a DBI
 
 Future
 ======
@@ -78,7 +123,7 @@ Future
    * delete/undelete
    * Attachment of notes (or should this be done as metadata?)
    * diff's
-   * content search
+   * content search - namazu?
    * What to do about localization, translations, etc.?
    * Document format conversion (to pdf, png, html, etc.)
    * Triggers / Events - whenever a change occurs, listeners are notified
@@ -86,7 +131,6 @@ Future
    * Status watching (notify when quantity of files reaches threshholds, etc.)
    * Conversion of mail to DMS
    * Repackaging (tar.gz / zip)
-   * File system mapping (webdav, etc.)
    * Create docs like at
      http://pwp.netcabo.pt/users/1/0154115101/software/newdocms/technical-info.html
    * Consider caching of query results
@@ -105,4 +149,3 @@ Future
    * Different access levels based on group membership
    * Scheduled changes of access (becomes public on date X)
    * 
-

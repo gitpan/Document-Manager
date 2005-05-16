@@ -43,13 +43,15 @@ use WebService::TicketAuth::DBI;
 use Document::Repository;
 use Document::Object;
 use MIME::Base64;
+use File::stat;
 use File::Spec::Functions;
 use DBI;
-
-my $config_file = "/etc/webservice_dms/dms.conf";
+use SVG::Metadata;
 
 use vars qw($VERSION %FIELDS);
-our $VERSION = '0.11';
+our $VERSION = '0.12';
+
+my $config_file = "/etc/webservice_dms/dms.conf";
 
 use base 'WebService::TicketAuth::DBI';
 use fields qw(
@@ -157,26 +159,37 @@ sub checkout {
 
 =head2 add()
 
-Takes a hash of filenames => content pairs, and inserts each into the dms
-as a separate document.
+Takes a hash of filenames => content pairs, and inserts each into the
+dms as a separate document.  
+
+Returns the new ID number of the document added, or undef if failed.
 
 =cut
 
 sub add {
     my $self = shift;
-    warn "In Document::Manager::add(".join(', ',@_).")\n";
+    warn "In Document::Manager::add()\n";
 
     my (%files) = (@_);
     my @doc_ids;
     my $doc_id;
+    my ($sec, $min, $hr, $day, $month, $year) = (gmtime)[0..5];
+    my $now = sprintf("%04s-%02s-%02s %02s:%02s:%02s",
+		      $year+1900, $month+1, $day, $hr, $min, $sec);
     foreach my $filename (keys %files) {
 	my $content = $files{$filename};
+	($filename) = (File::Spec->splitpath($filename))[2];
 	my $local_filename = catfile('/tmp', $filename);
 	my $decoded = decode_base64($content);
-	open(FILE, ">$local_filename");
+	if (! open(FILE, ">$local_filename") ) {
+	    warn "Could not open file '$local_filename' for writing: $!\n";
+	    next;
+	}
 	binmode(FILE);
 	print FILE $decoded;
-	close(FILE);
+	if (! close(FILE) ) {
+	    warn "Could not close file '$local_filename':  $!\n";
+	}
 	warn "File data stored\n";
 
 	$doc_id = $self->_repo()->add($local_filename);
@@ -184,7 +197,47 @@ sub add {
 	    push @doc_ids, $doc_id;
 	} else {
 	    $self->_set_error($self->_repo()->get_error());
-	    warn "Error:  ".$self->_repo()->get_error()."\n";
+	}
+
+	# Generate metadata
+	my %properties;
+	# TODO:  Determine file type.  For now assume SVG
+	my $format = 'svg';
+
+	# Based on file type, extract metadata
+	if ($format eq 'svg') {
+	    my $svgmeta = new SVG::Metadata;
+	    if (! $svgmeta->parse($local_filename) ) {
+		$self->_set_error($svgmeta->errormsg());
+		warn $svgmeta->errormsg()."\n";
+	    }
+	    $properties{title}         = $svgmeta->title();
+	    $properties{author}        = $svgmeta->author();
+	    $properties{creator}       = $svgmeta->creator();
+	    $properties{creator_url}   = $svgmeta->creator_url();
+	    $properties{owner}         = $svgmeta->owner();
+	    $properties{owner_url}     = $svgmeta->owner_url();
+	    $properties{publisher}     = $svgmeta->publisher();
+	    $properties{publisher_url} = $svgmeta->publisher_url();
+	    $properties{license}       = $svgmeta->license();
+	    $properties{license_date}  = $svgmeta->license_date();
+	    $properties{description}   = $svgmeta->description();
+	    $properties{language}      = $svgmeta->language();
+	    $properties{keywords}      = $svgmeta->keywords();
+	}
+
+	$properties{title} ||= $filename;
+
+	my $inode = stat($local_filename);
+
+	$properties{state} = 'new';
+	$properties{size}  = $inode->size;
+	$properties{date}  = $now;
+	$properties{mimetype} = `file -bi $local_filename`;  # TODO:  PApp::MimeType?
+	chomp $properties{mimetype};
+
+	if (! $self->properties($doc_id, %properties) ) {
+	    warn "Error:  ".$self->get_error()."\n";
 	}
 
 	# Remove the temporary file
@@ -199,7 +252,7 @@ sub add {
 =head2 checkin()
 
 Commits a new revision to the document.  Returns the document's new
-revision number.
+revision number, or undef if failed.
 
 =cut
 
@@ -225,7 +278,6 @@ sub checkin {
 Returns a list of documents with property constraints meeting certain
 conditions.  
 
-# TODO
 =cut
 
 sub query {
@@ -237,10 +289,6 @@ sub query {
     # Could we cache properties?  Store in a database?  Or is that higher level?
     # Return list of matching documents
 
-    my %ob1 = ('foo' => 1, 'bar' => 2);
-    my %ob2 = ('foo' => 2, 'bar' => 4);
-    my %ob3 = ('foo' => 3, 'bar' => 6);
-
     my @objs = $self->_repo()->documents();
     return \@objs;
 }
@@ -249,7 +297,6 @@ sub query {
 
 Reverts the given document to a prior revision number
 
-# TODO
 =cut
 
 sub revert {
@@ -316,7 +363,7 @@ sub unlock {
 
 =head2 properties()
 
-Gets or sets the properties for a given document id
+Gets or updates the properties for a given document id
 
 =cut
 
@@ -335,12 +382,7 @@ sub properties {
     my $doc = new Document::Object(repository => $self->_repo(),
 				   doc_id     => $doc_id);
 
-    if (@_) {
-	my %properties = @_;
-	return 1;
-    } else {
-	return $doc->properties();
-    }
+    return $doc->properties(@_);
 }
 
 =head2 stats()
@@ -372,13 +414,6 @@ sub stats {
 Gets or sets the state of document in the system.  Returns undef if the 
 specified doc_id does not exist, or does not have a valid state set.
 
-Valid states include:
-
-Unreviewed ---> Rejected
-           \
-            +-> Accepted ---> Broken
-                         \
-                          +-> Retired
 =cut
 
 sub state {
@@ -387,22 +422,28 @@ sub state {
     my $state = shift;
     my $comment = shift;
 
-    if (! defined $doc_id) {
+    if (! $doc_id) {
 	$self->_set_error("No doc_id specified to Document::Manager::state\n");
 	return undef;
     }
 
-    if (defined $state) {
-	# TODO:  Set the state
-    } else {
-	# TODO:  Get the state
-	$state = 'unknown';
+    my $doc = new Document::Object(repository => $self->_repo(),
+				   doc_id     => $doc_id);
+    $state = $doc->state($state);
+    if (! $state) {
+	$self->_set_error($doc->get_error());
+	return undef;
+    }
+
+    if (defined $comment) {
+	$doc->log($comment);
     }
 
     return $state;
 }
 
 # TODO:  Applies a converter/translator/test to a document
+
 sub apply {
     my $self = shift;
     return 'Unimplemented';
@@ -455,12 +496,57 @@ sub metrics_authors {
 
 sub keyword_add {
     my $self = shift;
-    return 'Unimplemented';
+    my $doc_id = shift;
+    my @keywords = @_;
+
+    if (! defined $doc_id) {
+	$self->_set_error("No doc_id specified to Document::Manager::keyword_add\n");
+	return undef;
+    }
+
+    if (@keywords < 1) {
+	$self->_set_error("No keywords specified to Document::Manager::keyword_add\n");
+	return undef;
+    }
+
+    my $doc = new Document::Object(repository => $self->_repo(),
+				   doc_id     => $doc_id);
+
+    # TODO:  Maybe move keyword management into Document::Object ?
+    # Ensure we have the unique union of keywords
+    my %kwds;
+    foreach my $k (@keywords, split(/;/, $doc->properties('keyword'))) {
+	$k =~ s/;/,/g;
+	$kwds{lc($k)} = 1;
+    }
+    my $retval = $doc->properties('keyword', join(';', sort keys %kwds));
+
+    $doc->log("Added keywords: @keywords\n");
+
+    return $retval;
 }
 
+# Removes one or more keywords if they exist
 sub keyword_remove {
     my $self = shift;
-    return 'Unimplemented';
+    my $doc_id = shift;
+    my @keywords = @_;
+
+    my $doc = new Document::Object(repository => $self->_repo(),
+				   doc_id     => $doc_id);
+
+    my %kwds;
+    foreach my $k (split(/;/, $doc->properties('keyword'))) {
+	$kwds{$k} = 1;
+    }
+    foreach my $k (@keywords) {
+	$k =~ s/;/,/g;
+	delete $kwds{lc($k)};
+    }
+    my $retval = $doc->properties('keyword', join(';', sort keys %kwds));
+
+    $doc->log("Removed keywords:  @keywords\n");
+    return $retval;
 }
 
 # Determines if function has valid extension and/or mimetype
@@ -486,6 +572,11 @@ sub issue {
 }
 
 sub comment {
+    my $self = shift;
+    return 'Unimplemented';
+}
+
+sub create_dist {
     my $self = shift;
     return 'Unimplemented';
 }

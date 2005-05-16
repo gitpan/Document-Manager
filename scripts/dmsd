@@ -57,9 +57,9 @@ if ($opt_user) {
 $|=1;
 
 my %args;
-$args{'LocalPort'} = 8012;
-$args{'ReuseAddr'} = 1;
-$args{'Listen'}    = 5;
+$args{'LocalPort'}  = 8012;
+$args{'ReuseAddr'}  = 1;
+$args{'Listen'}     = 5;
 if ($opt_ssl) {
     $args{'SSL_key_file'} = $opt_ssl_key_file;
     $args{'SSL_cert_file'} = $opt_ssl_cert_file;
