@@ -1,3 +1,20 @@
+2005-05-23 01:34  bryce
+
+	* doc/PLAN, lib/Document/Manager.pm, lib/Document/Object.pm,
+	lib/Document/Repository.pm, scripts/doc_prop, scripts/ls_clipart,
+	scripts/update_clipart: Getting keywords to work correctly (more or
+	less).
+	
+	Filling in documentation for Document::Object and
+	Document::Manager.
+	
+	Removing unimplemented functions.  Removing misc. warnings.
+
+2005-05-16 01:00  bryce
+
+	* ChangeLog, MANIFEST, META.yml, lib/Document/Manager.pm: Updating
+	manifest
+
 2005-05-15 17:38  bryce
 
 	* Makefile.PL, doc/PLAN, lib/Document/Manager.pm,

@@ -49,7 +49,7 @@ use DBI;
 use SVG::Metadata;
 
 use vars qw($VERSION %FIELDS);
-our $VERSION = '0.12';
+our $VERSION = '0.25';
 
 my $config_file = "/etc/webservice_dms/dms.conf";
 
@@ -160,7 +160,10 @@ sub checkout {
 =head2 add()
 
 Takes a hash of filenames => content pairs, and inserts each into the
-dms as a separate document.  
+dms as a separate document.  The documents are scanned for valid RDF
+metadata which, if present, will be made available for use in the
+system.  [Note that for metadata, currently only SVG documents are
+supported.]
 
 Returns the new ID number of the document added, or undef if failed.
 
@@ -168,7 +171,6 @@ Returns the new ID number of the document added, or undef if failed.
 
 sub add {
     my $self = shift;
-    warn "In Document::Manager::add()\n";
 
     my (%files) = (@_);
     my @doc_ids;
@@ -182,15 +184,14 @@ sub add {
 	my $local_filename = catfile('/tmp', $filename);
 	my $decoded = decode_base64($content);
 	if (! open(FILE, ">$local_filename") ) {
-	    warn "Could not open file '$local_filename' for writing: $!\n";
+	    warn "Error:  Could not open file '$local_filename' for writing: $!\n";
 	    next;
 	}
 	binmode(FILE);
 	print FILE $decoded;
 	if (! close(FILE) ) {
-	    warn "Could not close file '$local_filename':  $!\n";
+	    warn "Error:  Could not close file '$local_filename':  $!\n";
 	}
-	warn "File data stored\n";
 
 	$doc_id = $self->_repo()->add($local_filename);
 	if ($doc_id) {
@@ -223,7 +224,7 @@ sub add {
 	    $properties{license_date}  = $svgmeta->license_date();
 	    $properties{description}   = $svgmeta->description();
 	    $properties{language}      = $svgmeta->language();
-	    $properties{keywords}      = $svgmeta->keywords();
+	    $properties{keywords}      = join('; ', $svgmeta->keywords());
 	}
 
 	$properties{title} ||= $filename;
@@ -241,11 +242,9 @@ sub add {
 	}
 
 	# Remove the temporary file
-	warn "Unlinking temporary file\n";
 	unlink($local_filename);
     }
 
-    warn "Returning doc_id = '$doc_id'\n";
     return $doc_id;
 }
 
@@ -278,6 +277,9 @@ sub checkin {
 Returns a list of documents with property constraints meeting certain
 conditions.  
 
+Note: Currently this function is unimplemented, and simply returns a
+list of all document IDs.
+
 =cut
 
 sub query {
@@ -293,77 +295,11 @@ sub query {
     return \@objs;
 }
 
-=head2 revert()
-
-Reverts the given document to a prior revision number
-
-=cut
-
-sub revert {
-    my $self = shift;
-    my $doc_id = shift;
-    my $new_revision = shift;
-
-    if (! $doc_id || $doc_id != /^\d+/) {
-	$self->_set_error("Invalid doc_id specified to checkout()");
-	return undef;
-    }
-
-    my $current_revision = 42;
-    if ($new_revision >= $current_revision) {
-	$self->_set_error("The specified new revision number '"
-			  .$new_revision."' is higher than the "
-			  ."current revision number '$current_revision'");
-	return undef;
-    }
-
-    # get the old revision of the document
-    # check it in as a new revision
-    # log / trigger notifications
-}
-
-=head2 lock()
-
-Locks a document for the given user for a specified period of time
-
-=cut
-
-sub lock {
-    my $self = shift;
-    my $doc_id = shift;
-
-    # Given a valid document id
-    if (! $doc_id || $doc_id != /^\d+/) {
-	$self->_set_error("Invalid doc_id specified to checkout()");
-	return undef;
-    }
-
-    # apply 'lock' on the document for the specified period by this uid
-}
-
-=head2 unlock() 
-
-Unlocks a document, if it is locked
-
-=cut
-
-sub unlock {
-    my $self = shift;
-    my $doc_id = shift;
-
-    # Given a valid document id
-    if (! $doc_id || $doc_id != /^\d+/) {
-	$self->_set_error("Invalid doc_id specified to checkout()");
-	return undef;
-    }
-
-    # If the document has been locked by this user
-    # unlock it
-}
 
 =head2 properties()
 
-Gets or updates the properties for a given document id
+Gets or updates the properties for a given document id.  Returns undef 
+on error, such as if an invalid document id is given.
 
 =cut
 
@@ -382,7 +318,7 @@ sub properties {
     my $doc = new Document::Object(repository => $self->_repo(),
 				   doc_id     => $doc_id);
 
-    return $doc->properties(@_);
+    return $doc->set_properties(@_);
 }
 
 =head2 stats()
@@ -394,6 +330,8 @@ whole, including the following:
 * Number of pending documents
 * Number of documents new today
 * Number of authors
+
+Note:  Currently this is unimplemented.
 
 =cut
 
@@ -413,6 +351,15 @@ sub stats {
 
 Gets or sets the state of document in the system.  Returns undef if the 
 specified doc_id does not exist, or does not have a valid state set.
+
+The following states are allowed:
+
+ new
+ open
+ accepted
+ rejected
+ broken
+ retired
 
 =cut
 
@@ -442,38 +389,6 @@ sub state {
     return $state;
 }
 
-# TODO:  Applies a converter/translator/test to a document
-
-sub apply {
-    my $self = shift;
-    return 'Unimplemented';
-}
-
-# TODO:  Renders a set of docs based on a hierarchy scheme
-sub render {
-    my $self = shift;
-    return 'Unimplemented';
-}
-
-# TODO:  Aggregates several separate documents into a single one (e.g., newsletter)
-sub aggregate {
-    my $self = shift;
-    return 'Unimplemented';
-}
-
-# TODO:  Derives a new document from an existing document (e.g. from a template)
-sub branch {
-    my $self = shift;
-    return 'Unimplemented';
-    # Return new document
-}
-
-# TODO:  Links to another dms system
-sub subscribe {
-    my $self = shift;
-    return 'Unimplemented';
-}
-
 sub metrics_pending_docs {
     my $self = shift;
     return 'Unimplemented';
@@ -493,6 +408,21 @@ sub metrics_authors {
     my $self = shift;
     return 'Unimplemented';
 }
+
+=head2 keyword_add($doc_id, @keywords)
+
+Adds a given keyword or list of keywords to the document's metadata.
+Returns undef if the keywords could not be added; the error can be
+retrieved from get_error().
+
+Leading and trailing spaces are stripped.  Any ';' characters in the
+keywords will be converted to ',' characters.  The keywords are also
+lowercased.
+
+Note: Currently this does not add the keywords to the original SVG file,
+only the metadata in the document system.
+
+=cut
 
 sub keyword_add {
     my $self = shift;
@@ -515,18 +445,29 @@ sub keyword_add {
     # TODO:  Maybe move keyword management into Document::Object ?
     # Ensure we have the unique union of keywords
     my %kwds;
-    foreach my $k (@keywords, split(/;/, $doc->properties('keyword'))) {
+    my $keywords = $doc->get_property('keywords') || '';
+    my @old_keywords = split(/;/, $keywords);
+    foreach my $k (@keywords, @old_keywords) {
 	$k =~ s/;/,/g;
+	$k =~ s/^\s+//;
+	$k =~ s/\s+$//;
 	$kwds{lc($k)} = 1;
     }
-    my $retval = $doc->properties('keyword', join(';', sort keys %kwds));
+    my $retval = $doc->set_properties('keywords', join('; ', sort keys %kwds));
 
     $doc->log("Added keywords: @keywords\n");
 
     return $retval;
 }
 
-# Removes one or more keywords if they exist
+=head2 keyword_remove()
+
+Removes one or more keywords from the document metadata, if present.
+
+Note:  Currently this does not actually alter the SVG file itself.
+
+=cut
+
 sub keyword_remove {
     my $self = shift;
     my $doc_id = shift;
@@ -536,49 +477,19 @@ sub keyword_remove {
 				   doc_id     => $doc_id);
 
     my %kwds;
-    foreach my $k (split(/;/, $doc->properties('keyword'))) {
-	$kwds{$k} = 1;
+    foreach my $k (split(/\s*;\s*/, $doc->get_property('keywords'))) {
+	$kwds{lc($k)} = 1;
     }
     foreach my $k (@keywords) {
 	$k =~ s/;/,/g;
+	$k =~ s/^\s+//;
+	$k =~ s/\s+$//;
 	delete $kwds{lc($k)};
     }
-    my $retval = $doc->properties('keyword', join(';', sort keys %kwds));
+    my $retval = $doc->set_properties('keywords', join('; ', sort keys %kwds));
 
     $doc->log("Removed keywords:  @keywords\n");
     return $retval;
-}
-
-# Determines if function has valid extension and/or mimetype
-sub validate_document_type {
-    my $self = shift;
-    return 'Unimplemented';
-}
-
-sub validate_properties {
-    my $self = shift;
-    return 'Unimplemented';
-}
-
-sub make_thumbnail {
-    my $self = shift;
-    return 'Unimplemented';
-}
-
-# Reporting issues/bugs about a document
-sub issue {
-    my $self = shift;
-    return 'Unimplemented';
-}
-
-sub comment {
-    my $self = shift;
-    return 'Unimplemented';
-}
-
-sub create_dist {
-    my $self = shift;
-    return 'Unimplemented';
 }
 
 1;

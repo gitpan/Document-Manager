@@ -6,12 +6,13 @@ Makefile.PL
 README
 doc/CONCEPT
 doc/PLAN
+doc/architecture.svg
 etc/dms.conf
 lib/Document/Manager.pm
 lib/Document/Object.pm
 lib/Document/Repository.pm
 scripts/dmsd
-scripts/doc_prop
+scripts/ls_clipart
 scripts/ls_docs
 scripts/repo_add
 scripts/repo_export
@@ -20,6 +21,7 @@ scripts/repo_init
 scripts/repo_ls
 scripts/repo_put
 scripts/submit_clipart
+scripts/update_clipart
 t/00_initialize.t
 t/01_repo_basic.t
 t/test_doc.txt

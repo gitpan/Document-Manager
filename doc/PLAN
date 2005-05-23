@@ -28,29 +28,30 @@ Milestone 2 - Get basics in place
    * (DONE) Scope out a simple test to upload/download 4 files through SOAP
    * (DONE) Figure out why ls_docs doesn't work on fdo
    * (DONE) Allow overriding config file location via Makefile.PL
-
-   * Test storing of content via D::Object::content()
-   * Test getting and setting state via D::Object::state()
-   * Implement MIME decode downloading in a get_clipart script
-   * Do a new release
-   * Install onto openclipart site
+   * (DONE) Test storing of content via D::Object::content()
+   * (DONE) Test getting and setting state via D::Object::state()
+   * (DONE) Do a new release
 
 Milestone 3 - Get it to do something useful
 ===========
-   * Hook up a simple way to alter the keywords for an SVG file
+   * (DONE) Storing templates in dms? - no
+   * (DONE) Hook up a simple way to alter the keywords for an SVG file 
+   * (DONE) Add POD for all of Document::Object's routines
+   * (DONE) Add detailed POD for all of Document::Manager's routines
+   * Ensure document checkout works
    * Insert the latest release into the dms
    * Set up a preliminary dms-client-cgi package
    * dms-client-cgi:  Make it generate a list of docs
    * dms-client-cgi:  Allow it to change the state of a document
    * Write a cmdline script to create a dist tarball of the clipart
    * Create tests to do a basic perl -c on each script
-   * Storing templates in dms?
-   * Add POD for all of Document::Object's routines
-   * Add detailed POD for all of Document::Manager's routines
    * Test adding keywords, that they don't replace other defined keywords
+   * Implement MIME decode downloading in a get_clipart script
+   * Install onto openclipart site [rejon]
 
 Milestone 4
 ===========
+   * Verify Document::Object::log() works correctly
    * Bundle CGI::Builder::TT2, etc. into a cgi package
    * Create a TT2 template from http://openclipart.org/cgi-bin/upload_svg.cgi
    * Create a simple CGI::Builder replacement for upload_svg.cgi
@@ -64,6 +65,7 @@ Milestone 4
    * Implement a to_hash() function in SVG::Metadata and update
      Document::Manager::add() to use it.
    * Look at Document::Archive::create_document() for Document::Manager::add()
+   * Research into alternatives for error message handling
 
 Milestone 5
 ===========
@@ -148,4 +150,18 @@ Future
    * Generate dist package of some/all documents
    * Different access levels based on group membership
    * Scheduled changes of access (becomes public on date X)
-   * 
+   * diff
+   * watchers
+   * Render
+   * Aggregate
+   * Branch
+   * Subscribe
+   * Apply converter/translator/test
+   * lock/unlock
+   * Revert
+   * validate_document_type
+   * validate_properties
+   * make_thumbnail
+   * report issue
+   * comment
+   * create_dist

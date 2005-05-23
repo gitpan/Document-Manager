@@ -460,7 +460,6 @@ sub content {
     }
 
     if (! -e $file) {
-	$self->_set_error("File '$file' does not exist\n");
 	return undef;
     }
 
@@ -520,9 +519,7 @@ sub update {
 	$self->_set_error("Could not open '$file' for writing:  $?\n");
 	return undef;
     }
-    warn "Writing content to file '$file'\n";
     print FILE $content;
-    warn "Successfully wrote file\n";
     return close(FILE);    
 }
 
@@ -573,7 +570,6 @@ sub documents {
     my $self = shift;
 
     my $repo = $self->{_repository_dir};
-    warn "Getting list of documents from '$repo'\n";
     $self->dbg("Getting list of documents from '$repo'\n", 4);
 
     our @documents = ();

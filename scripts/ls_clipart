@@ -16,7 +16,7 @@ our $opt_help;
 our $opt_man;
 our $opt_resource = 'http://www.openclipart.org/Document/Manager';
 our $opt_server   = 'http://localhost:8012/';
-our $opt_debug = 5;
+our $opt_debug    = 0;
 
 # Handle commandline options
 Getopt::Long::Configure ('bundling', 'no_ignore_case');
@@ -28,7 +28,6 @@ GetOptions(
            'resource|r=s' => \$opt_resource,
            );
 
-my $doc_id = shift @ARGV or pod2usage(-verbose => 1, -exitstatus => -1);
 
 # Handle -V or --version
 if ($opt_version) {
@@ -39,17 +38,17 @@ if ($opt_version) {
 # Usage
 pod2usage(-verbose => 2, -exitstatus => 0) if ($opt_man);
 pod2usage(-verbose => 1, -exitstatus => 0) if ($opt_help);
-pod2usage(-verbose => 1, -exitstatus => 0) if ($doc_id !~ /^\d+$/);
 
 exit main();
 
 
 sub main {
     # Connect to the server
-    warn "Connecting to server...\n";
+    warn "Connecting to server...\n" if $opt_debug>1;
     my $soap = create_soap_instance($opt_resource, $opt_server);
 
     # Create the test service object
+    warn "Creating the DMS object\n" if $opt_debug>1;
     my $response = $soap->call(new => 1);
     soap_assert($response);
     my $dms = $response->result;
@@ -58,33 +57,26 @@ sub main {
 	die "Could not create dms object\n";
     }
 
-    my %properties = ();
-    while (<>) {
-	next unless ($_ =~ /&\s*(\w+)\s*[\:\=\t]\s*(.*)$/);
-	my ($key, $value) = ($1, $2);
-	$property{$key} = $value;
-    }
-    $response = $soap->properties($dms, $doc_id, %properties);
-    soap_assert($response);
-
-    if (! $response->result) {
-	warn "No response received\n";
-	return -1;
-    }
-
-    my $properties = $response->result;
-    if (! $properties ) {
-	$response = $soap->get_error($dms);
-	if (! $response or ! $response->result) {
-	    warn "Unknown error retrieving document properties\n";
-	} else {
-	    warn $response->result, "\n";
+    foreach my $doc_id (@ARGV) {
+	if ( $doc_id !~ /^\d+$/ ) {
+	    warn "Invalid document id '$doc_id' (must be numeric)\n";
+	    next;
 	}
-	next;
-    }
-    foreach my $key (sort keys %{$properties}) {
-	my $value = $properties->{$key};
-	print "$key = $value\n";
+	$response = $soap->properties($dms, $doc_id);
+	soap_assert($response);
+
+	if (! $response->result) {
+	    warn "No results received\n" if $opt_debug>0;
+	    next;
+	}
+
+	my %property = %{$response->result};
+	print "Document $doc_id\n";
+	foreach my $key (sort keys %property) {
+	    printf("%-15s  %s\n", $key, $property{$key}||'');
+
+	}
+	print "\n";
     }
     return 0;
 }
@@ -120,15 +112,16 @@ __END__
 
 =head1 NAME
 
-doc_prop - display or update properties for a given document
+ls_docs - lists documents in the document management system
 
 =head1 SYNOPSIS
 
-doc_prop <doc_id> [options]
+ls_docs [options]
 
 =head1 DESCRIPTION
 
-This script displays or changes the properties for a given document.
+This tool lists the documents available in the Document Management
+System (DMS).
 
 =head1 OPTIONS
 
@@ -171,7 +164,7 @@ Bryce Harrington E<lt>bryce@bryceharrington.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2005 Bryce Harrington.com.  All Rights Reserved.
+Copyright (C) 2004 Bryce Harrington.com.  All Rights Reserved.
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 

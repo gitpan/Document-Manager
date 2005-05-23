@@ -53,9 +53,13 @@ use fields qw(
 	      _STATES
 	      );
 
-=head2 new()
+=head2 new(%args)
 
-Creates a new document object.
+Creates a new document object.  Accepts the following arguments in %args:
+
+ repository - a valid Document::Repository object
+
+ doc_id - the integer document ID this object represents
 
 =cut
 
@@ -86,7 +90,8 @@ sub _set_error {
 
 =head2 get_error()
 
-Returns the most recent error message
+Returns the most recent error message as a string.  Returns undef or a
+blank string if no error has been logged.
 
 =cut
 
@@ -129,8 +134,12 @@ sub log {
 
 =head2 content($filename[, $content])
 
-Retrieves the contents of a file in the document from the repository,
-or, if $content is defined, stores the content into the file.
+Retrieves the contents of a file in the document from the document
+repository, or, if $content is defined, stores the content into the
+file.
+
+Returns undef on error and logs an error message that can be retrieved
+via get_error().
 
 =cut
 
@@ -153,19 +162,16 @@ sub content {
 
     my $retval;
     if (defined $content) {
-	warn "Creating/Updating '$filename'...\n";
 	$retval = $self->{'_repository'}->update($filename,
 						 $self->{'_doc_id'},
 						 $content);
     } else {
-	warn "Retrieving...\n";
 	$retval = $self->{'_repository'}->content($filename,
 						  $self->{'_doc_id'});
     }
     $self->_set_error($self->{'_repository'}->get_error());
     if (! $retval) {
 	warn $self->{'_repository'}->get_error();
-	warn "Returning value '$retval'\n";
     }
     return $retval;
 }
@@ -174,7 +180,20 @@ sub content {
 
 =head2 state([$state])
 
-Gets or sets the state of the document.
+Gets or sets the state of the document.  The following states are
+valid:
+
+ new
+ open
+ accepted
+ rejected
+ broken
+ retired
+
+If a state not in this list is used, the function will return undef 
+and log an error.
+
+If called with no argument, returns the current state.
 
 =cut
 
@@ -194,16 +213,17 @@ sub state {
     }
 }
 
-=head2 properties()
-
-Gets or updates general properties about the document
-
-=cut
-
-sub properties {
+sub _metadata() {
     my $self = shift;
 
     if (! $self->{'_metadata'}) {
+	$self->{'_metadata'} = {
+	    'title'  => 'unknown',
+	    'author' => 'unknown',
+	    'date'   => '0000-00-00',
+	    'size'   => 0
+	};
+
 	# This should probably be replaced by something more sophisticated,
 	# however, this'll probably be reasonably efficient for now.
 	foreach (split /\n/, $self->content('METADATA')) {
@@ -216,21 +236,45 @@ sub properties {
 	}
     }
 
+    return $self->{'_metadata'};
+}
+
+=head2 set_properties(%properties)
+
+Updates general properties about the document.  Accepts a hash of
+key/value pairs corresponding to properties to set.  Only properties
+provided as arguments will be updated; other properties will be left
+unchanged.
+
+Returns a hash of all properties for the document.
+
+=cut
+
+sub set_properties {
+    my $self = shift;
+
     if (@_) {
 	my %props = @_;
 	while (my ($key, $value) = each %props) {
-	    $self->{'_metadata'}->{$key} = $value;
+	    $self->_metadata()->{$key} = $value;
 	}
 	return $self->_store_properties();
-    } elsif (! $self->{'_metadata'}) {
-	warn "Defaulting _metadata\n";
-	$self->{'_metadata'}->{title} = 'unknown';
-	$self->{'_metadata'}->{state} = 'unknown';
-	$self->{'_metadata'}->{size} = -1;
-	$self->{'_metadata'}->{date} = '0000-00-00';
     }
 
-    return $self->{'_metadata'};
+    return $self->_metadata();
+}
+
+=head2 get_property()
+
+Retrieves the value of one property of the document.
+
+=cut
+
+sub get_property {
+    my $self = shift;
+    my $prop = shift || return undef;
+
+    return $self->_metadata()->{$prop};
 }
 
 # Helper routine to persist the current properties in memories
@@ -240,22 +284,10 @@ sub _store_properties {
     warn "_store_properties()\n";
 
     my $content = '';
-    foreach my $key (sort keys %{$self->{'_metadata'}}) {
-	my $value = $self->{'_metadata'}->{$key};
+    while (my ($key, $value) = each %{$self->_metadata()}) {
 	$content .= "$key = $value\n";
     }
-    warn "Storing METADATA:\n $content\n";
     return $self->content('METADATA', $content);
-}
-
-sub diff {
-    my $self = shift;
-    my $revA = shift;
-    my $revB = shift;
-
-    # TODO:  Implement a diff feature
-    my $text = "unimplemented";
-    return $text;
 }
 
 =head2 comment([$cid], [$comment])
@@ -310,53 +342,4 @@ sub comment {
     
     return undef;
 }
-
-=head2 keywords([@keywords])
-
-Gets or sets the list of keywords for the document.
-
-=cut
-
-sub keywords {
-    my $self = shift;
-    my @keywords = @_;
-
-    if (@keywords) {
-	# TODO:  Set keywords
-    } else {
-	# TODO:  Return keywords
-    }
-}
-
-=head2 watcher([$cid], [$comment])
-
-Gets or sets the watcher information for a given watcher ID $wid,
-or adds a new $watcher if $wid is not defined, or returns all of
-the watchers if neither parameter is specified.
-
-=cut
-
-sub watcher {
-    my $self = shift;
-    my $wid = shift;
-    my $watcher = shift;
-
-    if (defined $wid) {
-	# TODO:  Get the watcher info
-	if (defined $watcher) {
-	    # TODO:  Update the watcher info
-	} else {
-	    # TODO:  Return the watcher info for $wid
-	}
-    } else {
-	if (defined $watcher) {
-	    # TODO:  Create a new watcher
-	} else {
-	    # TODO:  Return array of all watchers for this document
-	}
-    }
-}
-
-1;
-
 
