@@ -1,6 +1,6 @@
 #!/bin/perl
 
-# $Id: zz_dump_config.t,v 1.1 2004/08/15 18:54:18 bryce Exp $
+# $Id: zz_dump_config.t,v 1.1.1.1 2005/06/11 05:36:59 bryce Exp $
 
 my $ok; # global, true if the last call to version found the module, false otherwise
 use Config;

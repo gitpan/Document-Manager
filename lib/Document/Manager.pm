@@ -49,7 +49,7 @@ use DBI;
 use SVG::Metadata;
 
 use vars qw($VERSION %FIELDS);
-our $VERSION = '0.25';
+our $VERSION = '0.30';
 
 my $config_file = "/etc/webservice_dms/dms.conf";
 
@@ -144,7 +144,7 @@ sub checkout {
     my $revision = shift;
     $self->_set_error('');
 
-    if (! $doc_id || $doc_id != /^\d+/) {
+    if (! $doc_id || $doc_id !~ /^\d+/) {
 	$self->_set_error("Invalid doc_id specified to checkout()");
 	return undef;
     }

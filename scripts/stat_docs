@@ -31,7 +31,7 @@ GetOptions(
 
 # Handle -V or --version
 if ($opt_version) {
-    print '$0: $Revision: 1.1 $', "\n";
+    print '$0: $Revision: 1.1.1.1 $', "\n";
     exit 0;
 }
 
@@ -112,16 +112,16 @@ __END__
 
 =head1 NAME
 
-ls_docs - lists documents in the document management system
+stat_docs - displays metadata for one or more documents
 
 =head1 SYNOPSIS
 
-ls_docs [options]
+stat_docs
 
 =head1 DESCRIPTION
 
-This tool lists the documents available in the Document Management
-System (DMS).
+This tool displays the metadata for one or more documents stored in a
+document management system (DMS).
 
 =head1 OPTIONS
 
@@ -170,7 +170,7 @@ modify it under the same terms as Perl itself.
 
 =head1 REVISION
 
-Revision: $Revision: 1.1 $
+Revision: $Revision: 1.1.1.1 $
 
 =cut
 

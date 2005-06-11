@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
-# This script allows alteration of properties of a given clipart,
-# such as state and keywords
+# This script scans a directory system full of svg files and submits
+# them to a document management system on localhost, port 8012
 
 use strict;
 use Pod::Usage;
@@ -14,50 +14,35 @@ use MIME::Base64 qw(encode_base64);
 our $opt_version;
 our $opt_help;
 our $opt_man;
-our %opt_properties;
-our @opt_keyword_add;
-our @opt_keyword_remove;
-our $opt_state;
 our $opt_resource = 'http://www.openclipart.org/Document/Manager';
 our $opt_server   = 'http://localhost:8012/';
 our $opt_debug    = 0;
 
 Getopt::Long::Configure ("bundling", "no_ignore_case");
 GetOptions(
-           'version|V'          => \$opt_version,
-           'help|h'             => \$opt_help,
-           'man'                => \$opt_man,
-	   'properties|p=s'     => \%opt_properties,
-	   'keyword_add|k=s'    => \@opt_keyword_add,
-	   'keyword_remove|d=s' => \@opt_keyword_remove,
-	   'state|S=s'          => \$opt_state,
-           'server|s=s'         => \$opt_server,
-           'resource|r=s'       => \$opt_resource,
-           'debug|D=i',         => \$opt_debug
+           "version|V"    => \$opt_version,
+           "help|h"       => \$opt_help,
+           "man"          => \$opt_man,
+           'server|s=s'   => \$opt_server,
+           'resource|r=s' => \$opt_resource,
+           "debug|D=i",   => \$opt_debug
            );
 
 # Handle -V or --version
 if ($opt_version) {
-    print '$0: $Revision: 1.2 $', "\n";
+    print '$0: $Revision: 1.1.1.1 $', "\n";
     exit 0;
 }
 
 # Usage
 pod2usage(-verbose => 2, -exitstatus => 0) if ($opt_man);
 pod2usage(-verbose => 1, -exitstatus => 0) if ($opt_help);
-
-my $doc_id = shift @ARGV;
-
-if ($doc_id !~ /^\d+$/) {
-    warn "Document ID must be an integer\n";
-    pod2usage(-verbose => 1, -exitstatus => -1);
-}
-
+pod2usage(-verbose => 1, -exitstatus => 0) if (@ARGV < 1);
 
 exit main();
 
 my $soap;
-my $dms;
+my $docsys;
 
 sub main {
     # Connect to the server
@@ -66,55 +51,42 @@ sub main {
     # Create the document manager object
     my $response = $soap->call(new => 1);
     soap_assert($response);
-    $dms = $response->result;
+    $docsys = $response->result;
 
-    if (! $dms) {
-	die "Could not create dms object\n";
+    if (! $docsys) {
+	die "Could not create docsys object\n";
     }
 
-    if (keys %opt_properties > 0) {
-	$response = $soap->properties($dms, $doc_id, %opt_properties);
-	soap_assert($response);
-	if ($response->result) {
-	    warn "Set $doc_id properties: ".$response->result."\n";
-	} else {
-	    warn $soap->get_error($dms)->result, "\n";
-	}
-    }
 
-    if ($opt_state) {
-	$response = $soap->state($dms, $doc_id, $opt_state);
-	soap_assert($response);
-	if ($response->result) {
-	    warn "Set $doc_id state\n";
-	} else {
-	    $response = $soap->get_error($dms);
-	    warn($response->result or "Unknown error setting state\n");
-	}
-    }
-
-    if (@opt_keyword_add) {
-	$response = $soap->keyword_add($dms, $doc_id, @opt_keyword_add);
-	soap_assert($response);
-	if ($response->result) {
-	    warn "Set $doc_id keywords\n";
-	} else {
-	    warn $soap->get_error($dms)->result, "\n";
-	}
-    }
-
-    if (@opt_keyword_remove) {
-	$response = $soap->keyword_remove($dms, $doc_id, @opt_keyword_remove);
-	soap_assert($response);
-	if ($response->result) {
-	    warn "Removed $doc_id keywords\n";
-	} else {
-	    warn $soap->get_error($dms)->result, "\n";
-	}
-    }
+    find({ wanted => \&process_files }, @ARGV);
 
     return 0;
 }
+
+sub process_files {
+    if (! -d ) {
+	my $content = '';
+	my $buf = '';
+
+	# Load data from the file, encode it, and store in $content
+	open(FILE, $File::Find::name) 
+	    or die "Could not open file '$File::Find::name':  $!\n";
+	while (read(FILE, $buf, 60*57)) {
+	    $content .= encode_base64($buf);
+	}
+	close(FILE);
+
+	# Now send the encoded file to the dms server
+	my $response = $soap->add($docsys, $File::Find::name, $content);
+	soap_assert($response);
+
+	my $doc_id = $response->result || 'error';
+
+	# Display results of the upload
+	print "$_ -> $doc_id\n";
+    }
+}
+
 
 # Convenience function to create the soap instance
 sub create_soap_instance {
@@ -146,7 +118,7 @@ __END__
 
 =head1 NAME
 
-B<submit_clipart> - command-line program for submitting clipart to a document
+B<submit_doc> - command-line program for submitting a document to a document
 management system.
 
 =head1 SYNOPSIS
@@ -163,7 +135,7 @@ submit_clipart file.svg [file2.svg dir/ ...]
 
 =head1 DESCRIPTION
 
-B<submit_clipart> - This program is a client-side tool for submitting
+B<submit_doc> - This program is a client-side tool for submitting
 files to a remote document repository via SOAP.  Specifically, it's used
 for submitting SVG clipart to the Open Clip Art Library.  :-)
 
@@ -226,6 +198,6 @@ modify it under the same terms as Perl itself.
 
 =head1 REVISION
 
-Revision: $Revision: 1.2 $
+Revision: $Revision: 1.1.1.1 $
 
 =cut

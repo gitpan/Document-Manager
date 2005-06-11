@@ -30,19 +30,33 @@ my %opts = (
             'NAME'	   => $args{'name'},
             'VERSION_FROM' => "lib/Document/Manager.pm",
 	    'EXE_FILES'    => [ 
-                                "scripts/dmsd",
-				"scripts/submit_clipart",
-				"scripts/repo_add",
-				"scripts/repo_get",
+				qw(
+				   scripts/dmsd
+				   scripts/get_docs
+				   scripts/ls_docs
+				   scripts/repo_add
+				   scripts/repo_export
+				   scripts/repo_get
+				   scripts/repo_init
+				   scripts/repo_ls
+				   scripts/repo_put
+				   scripts/stat_docs
+				   scripts/submit_doc
+				   scripts/test_server.sh
+				   scripts/update_doc
+				   )
                                 ], 
             'PREREQ_PM' => {
-                'Carp'          => 1.01,
-		'Pod::Usage'    => 1.14,
-                'Getopt::Long'  => 2.32,
-                'File::Spec'    => 0.83,
-                'File::Copy'    => 2.05,
-                'File::Path'    => 1.05,
-                'File::Find'    => 1.04,
+		'Config::Simple'         => 0,
+                'Carp'                   => 1.00,
+		'Pod::Usage'             => 1.00,
+                'Getopt::Long'           => 2.00,
+                'File::Spec'             => 0,
+                'File::Copy'             => 2.00,
+                'File::Path'             => 1.00,
+                'File::Find'             => 1.00,
+		'RDF::Simple'            => 0,
+		'WebService::TicketAuth' => 0,
                 },
 	    'AUTHOR' => 'Bryce Harrington <bryce@bryceharrington.org>',
 	    'ABSTRACT' => 'Manages collection of revision-controlled docs'

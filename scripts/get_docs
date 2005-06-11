@@ -66,14 +66,17 @@ sub main {
 	return -1;
     }
 
-    use Data::Dumper;
-    printf("%-8s  %-24s  %-8s  %-8s  %-12s\n", 'ID', 'Title', 'State', 'Size', 'Date');
     foreach my $doc_id (@{$response->result}) {
 	next unless $doc_id;
-	$response = $soap->properties($dms, $doc_id);
+	my $store_dir = $doc_id;
+	if ( ! -d $store_dir) {
+	    `mkdir -p $store_dir`;
+	}
+	$response = $soap->checkout($dms, $store_dir, $doc_id);
+	print "$store_dir\n";
 	soap_assert($response);
-	my $properties = $response->result;
-	if (! $properties ) {
+
+	if (! $response->result ) {
 	    $response = $soap->get_error($dms);
 	    if (! $response or ! $response->result) {
 		warn "Unknown error retrieving document properties\n";
@@ -82,13 +85,7 @@ sub main {
 	    }
 	    next;
 	}
-	printf("%08d  %-24s  %-8s  %-8s  %-12s\n", 
-	       $doc_id, 
-	       ($properties->{'title'} or ''), 
-	       ($properties->{'state'} or ''), 
-	       ($properties->{'size'} or ''), 
-	       ($properties->{'date'} or '')
-	       );
+	
     }
     return 0;
 }
@@ -98,16 +95,15 @@ __END__
 
 =head1 NAME
 
-ls_docs - lists documents in the document management system
+get_docs - retrieves documents into the current directory
 
 =head1 SYNOPSIS
 
-ls_docs [options]
+get_docs [options]
 
 =head1 DESCRIPTION
 
-This tool lists the documents available in the Document Management
-System (DMS).
+Retrieves all documents from the DMS to the current directory
 
 =head1 OPTIONS
 

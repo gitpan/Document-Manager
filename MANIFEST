@@ -12,7 +12,7 @@ lib/Document/Manager.pm
 lib/Document/Object.pm
 lib/Document/Repository.pm
 scripts/dmsd
-scripts/ls_clipart
+scripts/get_docs
 scripts/ls_docs
 scripts/repo_add
 scripts/repo_export
@@ -20,9 +20,12 @@ scripts/repo_get
 scripts/repo_init
 scripts/repo_ls
 scripts/repo_put
-scripts/submit_clipart
-scripts/update_clipart
+scripts/stat_docs
+scripts/submit_doc
+scripts/test_server.sh
+scripts/update_doc
 t/00_initialize.t
 t/01_repo_basic.t
+t/02_script_compile.t
 t/test_doc.txt
 t/zz_dump_config.t

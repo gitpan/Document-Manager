@@ -281,8 +281,6 @@ sub get_property {
 sub _store_properties {
     my $self = shift;
 
-    warn "_store_properties()\n";
-
     my $content = '';
     while (my ($key, $value) = each %{$self->_metadata()}) {
 	$content .= "$key = $value\n";
