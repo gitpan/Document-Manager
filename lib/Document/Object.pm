@@ -239,6 +239,17 @@ sub _metadata() {
     return $self->{'_metadata'};
 }
 
+=head2 get_properties()
+
+Returns a hash of all properties for the document.
+
+=cut
+
+sub get_properties {
+    my $self = shift;
+    return $self->metadata();
+}
+
 =head2 set_properties(%properties)
 
 Updates general properties about the document.  Accepts a hash of
@@ -286,6 +297,72 @@ sub _store_properties {
 	$content .= "$key = $value\n";
     }
     return $self->content('METADATA', $content);
+}
+
+=head2 get_keywords()
+
+Returns an array of the keywords for this document.
+
+=cut
+
+sub get_keywords {
+    my $self = shift;
+    return split(/\s*;\s*/, $self->_metadata()->{keywords});
+}
+
+=head2 set_keywords(@keywords)
+
+Replaces the keywords for the document with those specified.
+
+=cut
+
+sub set_keywords {
+    my $self = shift;
+    $self->set_properties('keywords', join('; ', @_));
+}
+
+=head2 add_keywords
+
+Adds the given keywords to the document.  This does not remove any
+existing keywords, but it does check to make sure we're not adding
+any that are already included.  All added keywords are changed to
+lowercase, have any ';' characters changed into ',' and leading
+and trailing space is trimmed off.
+
+=cut
+
+sub add_keywords {
+    my $self = shift;
+    my %kwds;
+    foreach my $k (@_, $self->get_keywords()) {
+        $k =~ s/;/,/g;
+        $k =~ s/^\s+//;
+        $k =~ s/\s+$//;
+        $kwds{lc($k)} = 1;
+    }
+    return $self->set_keywords(sort keys %kwds);
+}
+
+=head2 remove_keywords
+
+Deletes the given keywords from the document.  This operates in a case
+insensitive manner.
+
+=cut
+
+sub remove_keywords {
+    my $self = shift;
+    my %kwds;
+    foreach my $k ($self->get_keywords()) {
+	$kwds{lc($k)} = 1;
+    }
+    foreach my $k (@_) {
+	$k =~ s/;/,/g;
+	$k =~ s/^\s+//;
+	$k =~ s/\s+$//;
+	delete $kwds{lc($k)};
+    }
+    return $self->set_keywords(sort keys %kwds);
 }
 
 =head2 comment([$cid], [$comment])

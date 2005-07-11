@@ -1,13 +1,30 @@
+Pre-Installation
+----------------
+
+First install these perl modules:
+
+ $ cpan
+
+And from the span prompt:
+
+ install Config::Simple
+ install WebService::TicketAuth::DBI
+ 
+ # You might have to do: force install RDF::Simple to skip tests on mysql db
+ install RDF::Simple
+
+
 
 Installation
 ------------
 
-To install the script and man pages in the standard areas, 
+To install the script and man pages in the standard areas,
 give the sequence of commands
+
 
  $ perl Makefile.PL
  $ make
- $ make test
+ $ make test         # this is not currently configured (failure will happen)
  $ make install      # you probably need to do this step as superuser
 
 If you want to install the script in your own private space, use
@@ -20,6 +37,27 @@ If you want to install the script in your own private space, use
  $ make install      # can do this step as joeuser
 
 Note that `make test` does nothing interesting.
+
+
+
+Running with DMS
+----------------
+
+To test the system with the dms daemon. Do the following as super-user:
+
+    cp etc/dms.conf /etc/dms.conf
+    mkdir /var/dms
+   
+    use SOAP::Transport::HTTP;
+    use SVG::Metadata;
+    use Document::Manager;
+    use Getopt::Long;
+   
+Now run scripts/dmsd
+
+To check output, then run scripts/dmsd, but to run in the background:
+
+    scripts/dmsd &
 
 
 Uninstallation

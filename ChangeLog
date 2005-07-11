@@ -1,3 +1,12 @@
+2005-06-12 18:39  jon
+	* scripts/get_docs scripts/ls_docs scripts/stat_docs
+	  scripts/submit_doc scripts/update_doc: Added support for setting an
+	  environment variable to control the server and resource for the 
+	  commands.
+	
+2005-05-23 17:22  jon
+	* INSTALL: Added notes on install procedure. Also, how to run dms.
+
 2005-05-23 01:34  bryce
 
 	* doc/PLAN, lib/Document/Manager.pm, lib/Document/Object.pm,

@@ -25,6 +25,27 @@ submitting any *.svg files it finds there to the central repository.
 ls_docs is another client tool for listing the document id's in the
 repository. 
 
+There are 2 environmental variables which can be set before running scripts 
+in the scripts folder.
+
+    * DMS_SERVER
+    * DMS_RESOURCE
+
+For example, to run ls_docs not on the default localhost, do this:
+
+    $ DMS_SERVER="http://SOMEOTHERMACHINE.org:8012/" ./ls_docs
+
+This is assuming that dmsd is running and is accessible on SOMEOTHERMACHINE.org
+
+One could also do this:
+
+    $ export DMS_SERVER="http://SOMEOTHERMACHINE.org:8012/"
+    $ ./ls_docs
+
+And also, since DMS_SERVER is set, then any commands that use DMS_SERVER will
+use this value you have exported.
+
+
 For instructions on how to install this application, see the
 file INSTALL.
 

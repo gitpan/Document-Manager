@@ -42,8 +42,8 @@ Milestone 3 - Get it to do something useful
    * (DONE) Ensure document checkout works
    * (DONE) Test adding keywords, that they don't replace other defined keywords
    * (DONE) Create tests to do a basic perl -c on each script
-   * Install 0.25 onto openclipart site [rejon]
-   * Insert the latest release into the dms
+   * (DONE) Install 0.25 onto openclipart site [rejon]
+   * (DONE) Insert the latest release into the dms
 
    * Set up a preliminary dms-client-cgi package
    * dms-client-cgi:  Make it generate a list of docs
@@ -51,15 +51,16 @@ Milestone 3 - Get it to do something useful
 
 Milestone 4
 ===========
+   * (DONE) Decide if submit_clipart and get_clipart should be renamed
+   * (DONE) Should I make some client libs to abstract the SOAP stuff better?
+   * (DONE) When there are no docs in system, have ls_docs print "dms is empty"
    * Ensure document checkout works on fdo
    * Verify Document::Object::log() works correctly
    * Bundle CGI::Builder::TT2, etc. into a cgi package
    * Create a TT2 template from http://openclipart.org/cgi-bin/upload_svg.cgi
    * Create a simple CGI::Builder replacement for upload_svg.cgi
    * Make the CGI::Builder cgi do SOAP calls
-   * (DONE) Decide if submit_clipart and get_clipart should be renamed
    * Split out the submit_clipart and get_clipart to a client package
-   * (DONE) Should I make some client libs to abstract the SOAP stuff better?
    * Change get_error() to errormsg() throughout
    * Research more generalized ways of handling file metadata for
      non-svg, and plan implementation of it
@@ -67,16 +68,12 @@ Milestone 4
      Document::Manager::add() to use it.
    * Look at Document::Archive::create_document() for Document::Manager::add()
    * Research into alternatives for error message handling
-   * Research how to do WSDL for dms
    * Look into DoXFS more for replacing dms backend
    * Figure out way to daemonize dmsd [rejon]
    * Determine best port for dms
    * Set up makefile to be able to add custom use lib paths
    * Figure out way to customize where dms.conf is stored
-   * When there are no docs in system, have ls_docs print "dms is empty"
    * Figure out way to specify the -s options on cmdline tools
-   * Make dmsd print out it's settings (like dms dir location) on
-     startup
    * Make Document::Repository error if _repository_dir not set instead
      of defaulting to /var/dms
    * Create script to list out the valid states for a document
@@ -113,11 +110,11 @@ Milestone 6
 
 Milestone 7
 ===========
+   * (DONE) Plan out how / if I should add a db for caching info
    * Implement a simple commenting system
    * In Document::Object, can I eliminate the extra asserts by doing
      them in the new() function?
    * Review other DMS capabilities for other cmds to be added
-   * Plan out how / if I should add a db for caching info
    * Investigate benefit of replacing backend with XFS file system
    * Investigate methods of caching the state in a DBI
    * Do further planning

@@ -72,5 +72,6 @@ my $daemon = SOAP::Transport::HTTP::Daemon
     ;
 
 print "Contact to SOAP server at ", $daemon->url, "\n";
+
 $daemon->handle;
 

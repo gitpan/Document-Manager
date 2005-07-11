@@ -49,9 +49,9 @@ use DBI;
 use SVG::Metadata;
 
 use vars qw($VERSION %FIELDS);
-our $VERSION = '0.30';
+our $VERSION = '0.35';
 
-my $config_file = "/etc/webservice_dms/dms.conf";
+our $CONF = "/etc/webservice_dms/dms.conf";
 
 use base 'WebService::TicketAuth::DBI';
 use fields qw(
@@ -76,8 +76,8 @@ sub new {
     # Load up configuration parameters from config file
     my %config;
     my $errormsg = '';
-    if (! Config::Simple->import_from($config_file, \%config)) {
-        $errormsg = "Could not load config file '$config_file': " .
+    if (! Config::Simple->import_from($CONF, \%config)) {
+        $errormsg = "Could not load config file '$CONF': " .
             Config::Simple->error()."\n";
     }
 
@@ -180,6 +180,7 @@ sub add {
 		      $year+1900, $month+1, $day, $hr, $min, $sec);
     foreach my $filename (keys %files) {
 	my $content = $files{$filename};
+	next unless $content;
 	($filename) = (File::Spec->splitpath($filename))[2];
 	my $local_filename = catfile('/tmp', $filename);
 	my $decoded = decode_base64($content);
@@ -285,13 +286,15 @@ list of all document IDs.
 sub query {
     my $self = shift;
 
-    warn "Calling query()\n";
-
     # Pass in a function pointer we'll use for determine matching docs
     # Could we cache properties?  Store in a database?  Or is that higher level?
     # Return list of matching documents
 
     my @objs = $self->_repo()->documents();
+
+# SELECT id FROM document WHERE $criteria
+# $criteria could be:  keywords, author, latest N
+
     return \@objs;
 }
 
@@ -317,8 +320,11 @@ sub properties {
     # Retrieve the properties for this document
     my $doc = new Document::Object(repository => $self->_repo(),
 				   doc_id     => $doc_id);
-
-    return $doc->set_properties(@_);
+    if (@_ > 1) {
+	return $doc->set_properties(@_);
+    } else {
+	return $doc->get_properties();
+    }
 }
 
 =head2 stats()
@@ -442,18 +448,8 @@ sub keyword_add {
     my $doc = new Document::Object(repository => $self->_repo(),
 				   doc_id     => $doc_id);
 
-    # TODO:  Maybe move keyword management into Document::Object ?
     # Ensure we have the unique union of keywords
-    my %kwds;
-    my $keywords = $doc->get_property('keywords') || '';
-    my @old_keywords = split(/;/, $keywords);
-    foreach my $k (@keywords, @old_keywords) {
-	$k =~ s/;/,/g;
-	$k =~ s/^\s+//;
-	$k =~ s/\s+$//;
-	$kwds{lc($k)} = 1;
-    }
-    my $retval = $doc->set_properties('keywords', join('; ', sort keys %kwds));
+    my $retval = $doc->add_keywords(@keywords);
 
     $doc->log("Added keywords: @keywords\n");
 
@@ -471,24 +467,13 @@ Note:  Currently this does not actually alter the SVG file itself.
 sub keyword_remove {
     my $self = shift;
     my $doc_id = shift;
-    my @keywords = @_;
 
     my $doc = new Document::Object(repository => $self->_repo(),
 				   doc_id     => $doc_id);
 
-    my %kwds;
-    foreach my $k (split(/\s*;\s*/, $doc->get_property('keywords'))) {
-	$kwds{lc($k)} = 1;
-    }
-    foreach my $k (@keywords) {
-	$k =~ s/;/,/g;
-	$k =~ s/^\s+//;
-	$k =~ s/\s+$//;
-	delete $kwds{lc($k)};
-    }
-    my $retval = $doc->set_properties('keywords', join('; ', sort keys %kwds));
+    my $retval = $doc->remove_keywords(@_);
 
-    $doc->log("Removed keywords:  @keywords\n");
+    $doc->log("Removed keywords:  @_\n");
     return $retval;
 }
 

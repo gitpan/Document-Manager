@@ -19,8 +19,9 @@ our %opt_properties;
 our @opt_keyword_add;
 our @opt_keyword_remove;
 our $opt_state;
-our $opt_resource = 'http://www.openclipart.org/Document/Manager';
-our $opt_server   = 'http://localhost:8012/';
+our $opt_resource = ($ENV{'DMS_RESOURCE'} or
+                     'http://www.openclipart.org/Document/Manager');
+our $opt_server   = ($ENV{'DMS_SERVER'} or 'http://localhost:8012/');
 our $opt_debug    = 0;
 
 Getopt::Long::Configure ("bundling", "no_ignore_case");
@@ -39,7 +40,7 @@ GetOptions(
 
 # Handle -V or --version
 if ($opt_version) {
-    print '$0: $Revision: 1.1.1.1 $', "\n";
+    print '$0: $Revision: 1.2 $', "\n";
     exit 0;
 }
 
@@ -220,6 +221,6 @@ modify it under the same terms as Perl itself.
 
 =head1 REVISION
 
-Revision: $Revision: 1.1.1.1 $
+Revision: $Revision: 1.2 $
 
 =cut

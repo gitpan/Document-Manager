@@ -47,6 +47,9 @@ my %opts = (
 				   )
                                 ], 
             'PREREQ_PM' => {
+		'SOAP::Lite'             => 0,
+		'SOAP::Lite::Utility'    => 0,
+		'SVG::Metadata'          => 0,
 		'Config::Simple'         => 0,
                 'Carp'                   => 1.00,
 		'Pod::Usage'             => 1.00,
